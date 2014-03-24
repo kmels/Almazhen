@@ -5,6 +5,9 @@
       <SbtProjectSettings>
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
       </SbtProjectSettings>
+      <SbtProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/uvg.edu.gt.Almazhen.Parser" />
+      </SbtProjectSettings>
     </option>
   </component>
 </project>
