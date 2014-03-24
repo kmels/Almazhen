@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Almazhen.iml" filepath="$PROJECT_DIR$/Almazhen.iml" />
       <module fileurl="file://$PROJECT_DIR$/project/Almazhen-build.iml" filepath="$PROJECT_DIR$/project/Almazhen-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/uvg.edu.gt.Almazhen.Parser/uvg.edu.gt.Almazhen.Parser.iml" filepath="$PROJECT_DIR$/uvg.edu.gt.Almazhen.Parser/uvg.edu.gt.Almazhen.Parser.iml" />
     </modules>
   </component>
 </project>
