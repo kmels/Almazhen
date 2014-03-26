@@ -28,9 +28,24 @@ object Parser extends StandardTokenParsers {
     case name => UseDatabase(name)
   }
 
-//  def createTBCommandParser:Parser[DropDatabase] = "CREATE" ~> "TABLE" ~> ident ~ "(" ~ repsep(ColumnSpec,",") ~ "CONSTRAINT" ~ repsep(Restriction, ",") ~ ")" ^^ {
-//    case name ~ "(" ~ List[ColumnSpec] ~ "CONSTRAINT" ~ => CreateTable(name)
-//  }
+
+  def createTBCommandParser:Parser[DropDatabase] = "CREATE" ~> "TABLE" ~> ident ~ "(" ~ repsep(columnSpec,",") ~ "CONSTRAINT" ~ repsep(restriction, ",") <~ ")" ^^ {
+    case name ~ "(" ~ cs ~ "CONSTRAINT" ~ re => CreateTable(name, cs, re)
+  }
+
+  def columnSpec:Parser[ColumnSpec[AnyVal]] = ident ~ ("INT"|"FLOAT"|"DATE"|"CHAR") ^^ {
+    case name ~ "INT" => columnInt(name)
+    case name ~ "FLOAT" => columnFloat(name)
+    case name ~ "DATE" => columnDate(name)
+    case name ~ "CHAR" => columnChar(name)}
+
+
+  def restriction:Parser[ColumnSpec[AnyVal]] = ("PK_"ident~"PRIMARY"~"KEY"~"(" repsep(ident,",")~")"
+    |"FK_"ident~"FOREIGN"~"KEY"~"(" repsep(ident,",")~")"~"REFERENCES"~ident~"("~repsep(ident,",")~")"
+    |"CH_"ident~"CHECK"~"("~Predicate~")") ^^ {
+    case _ => Restriction()
+  }
+
 
   def parse(s:String):Option[Command] = {
     val tokens = new lexical.Scanner(s)
