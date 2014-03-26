@@ -33,7 +33,7 @@ case class Insert(tableName : String, values : List[String]) extends Command {}
 
 case class InsertWithColumns(tableName : String, columns : List[String], values : List[String]) extends Command {}
 
-case class Update(tableName : String, keyValuePair : List[(String, String)], check : Predicate) extends Command {}
+case class Update(tableName : String, columnValuePair : List[(String, String)], check : Predicate) extends Command {}
 
 case class Delete(tableName : String, check : Predicate) extends Command {}
 

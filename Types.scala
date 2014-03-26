@@ -5,16 +5,24 @@
 import java.io.{InputStreamReader, BufferedReader}
 import java.util.Scanner;
 
-class ColumnSpec(name: String, ColumnType : AZtype) {
+class ColumnSpec() {
 }
 
+class Predicate() {}
+
+class OrderBy() {}
 
 class AZtype[+T](implicit m:Manifest[T]) {
   override def toString = "AZtype["+m.toString+"]"
 }
 
-object columnInt extends AZtype[Boolean]
-object columnBool extends AZtype[Int]
-object columnChar extends AZtype[Char]
+object ColumnInt extends ColumnSpec
+object ColumnFloat extends ColumnSpec
+object ColumnDate extends ColumnSpec
+object ColumnChar extends ColumnSpec
 
-class Restriction(expression: String)
+class Pk_key()
+class Fk_key()
+class Ch_key()
+
+class Restriction()
