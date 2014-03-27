@@ -21,8 +21,11 @@ object ColumnFloat extends ColumnSpec
 object ColumnDate extends ColumnSpec
 object ColumnChar extends ColumnSpec
 
-class Pk_key()
-class Fk_key()
-class Ch_key()
+class Pk_key() {}
+class Fk_key() {}
+class Ch_key() {}
 
-class Restriction()
+class ColValuePair(colName : String, colValue : String ){}
+class OrderExpr(expression : String, order : String){}
+
+class Restriction() {}

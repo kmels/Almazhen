@@ -66,6 +66,39 @@ object Parser extends StandardTokenParsers {
     case tableName => ShowColumns(tableName)
   }
 
+  def insertCommandParser: Parser[Insert] = "INSERT" ~> "INTO" ~>  ident ~ "VALUES" ~ "(" ~ repsep(ident/*string*/, ",") <~ ")" ^^{
+    case tableName ~ "VALUES" ~ "(" ~ newValues => Insert(tableName, newValues)
+  }
+
+  def insertWithColumnsCommandParser: Parser[InsertWithColumns] = "INSERT" ~> "INTO" ~>  ident ~"("~repsep(ident/*string*/,",")~")"~ "VALUES" ~ "(" ~ repsep(ident, ",") <~ ")" ^^{
+    case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => InsertWithColumns(tableName, theColumns, newValues)
+  }
+
+  def updateCommandParser: Parser[Update] = "UPDATE" ~> ident ~ "SET" ~ repsep(colValuePair,",")~"WHERE" ~ ident/*predicate*/ ^^{ /// definir predicate
+    case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => Update(tableName, theColumns, newValues)
+  }
+
+  def deleteCommandParser: Parser[Delete] = "DELETE"~"FROM" ~> ident ~ "WHERE" ~ ident/*predicate*/ ^^{ /// definir predicate
+    case tableName ~"WHERE"~thePredicate => Delete(tableName, thePredicate)
+  }
+
+  def selectCommandParser: Parser[Select] = "SELECT" ~> repsep(ident,",")~"FROM" ~ ident  ~ "WHERE" ~ ident/*predicate*/ ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,",")  ^^{ /// definir predicate
+    case columnList~"FROM" ~ tableName  ~ "WHERE" ~ thePredicate/*predicate*/ ~ "ORDER" ~ "BY" ~ theOrderExpr=> Select(columnList, tableName, thePredicate)
+  }
+
+  def selectCommandParser: Parser[Select] = "SELECT" ~> "*"~>"FROM" ~ ident  ~ "WHERE" ~ ident/*predicate*/ ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,",")  ^^{ /// definir predicate
+    case tableName  ~ "WHERE" ~ thePredicate/*predicate*/ ~ "ORDER" ~ "BY" ~ theOrderExpr=> SelectAll(tableName, thePredicate, theOrderExpr)
+  }
+
+  def orderByExpr: Parser[ColValuePair] = ident/*expr*/~("ASC"|"DESC")^^ {
+    case expression ~ "ASC" => OrderExpr(expression, "asc")
+    case expression ~ "DESC" => OrderExpr(expression, "desc")
+  }
+
+  def colValuePair: ColValuePair = ident~"="~ident ^^ {
+    case colName ~ "=" ~ newValue => ColValuePair(colName , newValue)
+  }
+
   def columnSpec: Parser[ColumnSpec] = ident ~ ("INT" | "FLOAT" | "DATE" | "CHAR") ^^ {
     case name ~ "INT" => ColumnInt //fix constructor and type definition
     case name ~ "FLOAT" => ColumnFloat //fix constructor and type definition
@@ -74,7 +107,7 @@ object Parser extends StandardTokenParsers {
   } //fix constructor and type definition
 
   def restriction:Parser[Restriction] = (pk_restriction | fk_restriction | ch_restriction) ^^ {
-      case _ => Restriction //fix constructor and type definition
+      case _ => Restriction() //fix constructor and type definition
   }
 
   def pk_restriction:Parser[Pk_key] = "PK_"ident~"PRIMARY"~"KEY"~"(" repsep(ident,",")<~")" ^^ {
