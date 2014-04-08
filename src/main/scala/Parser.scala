@@ -1,3 +1,4 @@
+import scala.util.parsing.combinator.RegexParsers
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
 object Parser extends StandardTokenParsers {
@@ -74,29 +75,31 @@ object Parser extends StandardTokenParsers {
     case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => InsertWithColumns(tableName, theColumns, newValues)
   }
 
-  def updateCommandParser: Parser[Update] = "UPDATE" ~> ident ~ "SET" ~ repsep(colValuePair,",")~"WHERE" ~ ident/*predicate*/ ^^{ /// definir predicate
-    case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => Update(tableName, theColumns, newValues)
+  def updateCommandParser: Parser[UpdateCommand] = "UPDATE" ~> ident ~ "SET" ~ repsep(assignment,",") ~ "WHERE" ~ predicate ^^{ /// definir predicate
+    case tableName ~ "SET" ~ theColumns ~ "WHERE" ~ newValues => UpdateCommand(tableName, theColumns, newValues)
   }
 
-  def deleteCommandParser: Parser[Delete] = "DELETE"~"FROM" ~> ident ~ "WHERE" ~ ident/*predicate*/ ^^{ /// definir predicate
+  def predicate: Parser[Predicate] = ident ^^ { case _ => Predicate()}
+
+  def deleteCommandParser: Parser[Delete] = "DELETE"~"FROM" ~> ident ~ "WHERE" ~ predicate ^^{
     case tableName ~"WHERE"~thePredicate => Delete(tableName, thePredicate)
   }
 
-  def selectCommandParser: Parser[Select] = "SELECT" ~> repsep(ident,",")~"FROM" ~ ident  ~ "WHERE" ~ ident/*predicate*/ ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,",")  ^^{ /// definir predicate
-    case columnList~"FROM" ~ tableName  ~ "WHERE" ~ thePredicate/*predicate*/ ~ "ORDER" ~ "BY" ~ theOrderExpr=> Select(columnList, tableName, thePredicate)
+  def selectSome: Parser[SelectCommand] = "SELECT" ~> repsep(ident,",")~"FROM" ~ ident  ~ "WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,",")  ^^{ /// definir predicate
+    case projections ~ "FROM" ~ tableName  ~ "WHERE" ~ thePredicate ~ "ORDER" ~ "BY" ~ orderby => SelectCommand(projections, tableName, thePredicate, orderby)
   }
 
-  def selectCommandParser: Parser[Select] = "SELECT" ~> "*"~>"FROM" ~ ident  ~ "WHERE" ~ ident/*predicate*/ ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,",")  ^^{ /// definir predicate
-    case tableName  ~ "WHERE" ~ thePredicate/*predicate*/ ~ "ORDER" ~ "BY" ~ theOrderExpr=> SelectAll(tableName, thePredicate, theOrderExpr)
+  def selectAll: Parser[SelectCommand] = "SELECT" ~> "*" ~> "FROM" ~> ident ~ "WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,",")  ^^{ /// definir predicate
+    case tableName ~ "WHERE" ~ thePredicate ~ "ORDER" ~ "BY" ~ orderby => SelectCommand(List(), tableName, thePredicate, orderby)
   }
 
-  def orderByExpr: Parser[ColValuePair] = ident/*expr*/~("ASC"|"DESC")^^ {
-    case expression ~ "ASC" => OrderExpr(expression, "asc")
-    case expression ~ "DESC" => OrderExpr(expression, "desc")
+  def orderByExpr: Parser[OrderBy] = ident/*expr*/~("ASC"|"DESC")^^ {
+    case expression ~ "ASC" => OrderBy(expression, "asc")
+    case expression ~ "DESC" => OrderBy(expression, "desc")
   }
 
-  def colValuePair: ColValuePair = ident~"="~ident ^^ {
-    case colName ~ "=" ~ newValue => ColValuePair(colName , newValue)
+  def assignment: Parser[Assignment] = ident~"="~ident ^^ {
+    case colName ~ "=" ~ newValue => Assignment(colName , newValue)
   }
 
   def columnSpec: Parser[ColumnSpec] = ident ~ ("INT" | "FLOAT" | "DATE" | "CHAR") ^^ {
@@ -107,19 +110,23 @@ object Parser extends StandardTokenParsers {
   } //fix constructor and type definition
 
   def restriction:Parser[Restriction] = (pk_restriction | fk_restriction | ch_restriction) ^^ {
-      case _ => Restriction() //fix constructor and type definition
+    case _ => Restriction() //fix constructor and type definition
   }
 
-  def pk_restriction:Parser[Pk_key] = "PK_"ident~"PRIMARY"~"KEY"~"(" repsep(ident,",")<~")" ^^ {
-    case name ~"PRIMARY"~"KEY"~"(" ~ columns => Pk_key(name, columns)
+  def pk_restriction:Parser[Pk_key] = pkNameParser ~ "PRIMARY" ~ "KEY" ~ "(" ~ repsep(ident,",") <~")" ^^ {
+    case pkName ~ "PRIMARY" ~ "KEY" ~ "(" ~ columns => Pk_key(pkName, columns)
   }
 
-  def fk_restriction:Parser[Fk_key] = "FK_"ident~"FOREIGN"~"KEY"~"(" repsep(ident,",")~")"~"REFERENCES"~ident~"("~repsep(ident,",")<~")" {
-    case name ~"FOREIGN"~"KEY"~"(" ~ columns ~")"~"REFERENCES"~referencedTableName~"("~ referencedColumns => Fk_key(name, columns)
+  def pkNameParser: Parser[String] = ident // """Pk_(\w+)?""".r ^^ { i => i}
+  def fkNameParser: Parser[String] = ident// """Fk_(\w+)?""".r ^^ { i => i}
+  def chNameParser: Parser[String] = ident //"""Pk_(\w+)?""".r ^^ { i => i}
+
+  def fk_restriction:Parser[Fk_key] = fkNameParser ~ "FOREIGN"~"KEY"~"(" ~ repsep(ident,",") ~ ")" ~ "REFERENCES" ~ ident ~ "("~repsep(ident,",")<~")" ^^ {
+    case fkName ~"FOREIGN"~"KEY"~"(" ~ columns ~")"~"REFERENCES"~referencedTableName~"("~ referencedColumns => Fk_key(fkName, columns.zip(referencedColumns))
   }
 
-  def ch_restriction:Parser[Ch_key] = "CH_"ident~"CHECK"~"(" predicate ~ ")" ^^ {
-    case name ~"CHECK"~"(" ~ thePredicate ~ ")" =>Ch_key(name, thePredicate)
+  def ch_restriction:Parser[Ch_key] = chNameParser ~ "CHECK" ~ "(" ~ predicate ~ ")" ^^ {
+    case name ~"CHECK"~"(" ~ thePredicate ~ ")" => Ch_key(name, thePredicate)
   }
 
   def parse(s:String):Option[Command] = {

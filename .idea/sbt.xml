@@ -4,9 +4,21 @@
     <option name="linkedExternalProjectsSettings">
       <SbtProjectSettings>
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="modules">
+          <set>
+            <option value="C:\Almazhen" />
+            <option value="C:\Almazhen/project" />
+          </set>
+        </option>
       </SbtProjectSettings>
       <SbtProjectSettings>
         <option name="externalProjectPath" value="$PROJECT_DIR$/uvg.edu.gt.Almazhen.Parser" />
+        <option name="modules">
+          <set>
+            <option value="C:\Almazhen\uvg.edu.gt.Almazhen.Parser" />
+            <option value="C:\Almazhen\uvg.edu.gt.Almazhen.Parser/project" />
+          </set>
+        </option>
       </SbtProjectSettings>
     </option>
   </component>
