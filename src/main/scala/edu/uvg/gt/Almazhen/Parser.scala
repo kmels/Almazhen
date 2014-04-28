@@ -1,3 +1,5 @@
+package edu.uvg.gt.Almazhen
+
 import scala.util.parsing.combinator.RegexParsers
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
@@ -102,12 +104,12 @@ object Parser extends StandardTokenParsers {
     case colName ~ "=" ~ newValue => Assignment(colName , newValue)
   }
 
-  def columnSpec: Parser[ColumnSpec] = ident ~ ("INT" | "FLOAT" | "DATE" | "CHAR") ^^ {
-    case name ~ "INT" => ColumnInt //fix constructor and type definition
-    case name ~ "FLOAT" => ColumnFloat //fix constructor and type definition
-    case name ~ "DATE" => ColumnDate //fix constructor and type definition
-    case name ~ "CHAR" => ColumnChar
-  } //fix constructor and type definition
+  def columnSpec: Parser[ColumnDefinition] = ident ~ ("INT" | "FLOAT" | "DATE" | "CHAR") ^^ {
+    case name ~ "INT" => ColumnDefinition(name, IntType)
+    case name ~ "FLOAT" => ColumnDefinition(name, FloatType)
+    case name ~ "DATE" => ColumnDefinition(name, DateType)
+    case name ~ "CHAR" => ColumnDefinition(name, CharType)
+  }
 
   def restriction:Parser[Restriction] = (pk_restriction | fk_restriction | ch_restriction) ^^ {
     case _ => Restriction() //fix constructor and type definition

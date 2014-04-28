@@ -1,25 +1,24 @@
 /**
  * Created by kmels on 3/20/14.
  */
+package edu.uvg.gt.Almazhen
+
 
 import java.io.{InputStreamReader, BufferedReader}
 import java.util.Scanner;
 
-class ColumnSpec() {
-}
+case class ColumnDefinition(name: String, typ: AZtype)
 
 case class Predicate
 
 case class OrderBy(expression : String, order : String)
 
-class AZtype[+T](implicit m:Manifest[T]) {
-  override def toString = "AZtype["+m.toString+"]"
-}
+abstract class AZtype
 
-object ColumnInt extends ColumnSpec
-object ColumnFloat extends ColumnSpec
-object ColumnDate extends ColumnSpec
-object ColumnChar extends ColumnSpec
+object IntType extends AZtype
+object FloatType extends AZtype
+object DateType extends AZtype
+object CharType extends AZtype
 
 class Constraint
 case class Pk_key(name: String, cols: List[String]) extends Constraint
