@@ -23,6 +23,12 @@ object Executor {
 	    AffectedRows(0)
 	  }
 	  
+	  case DropDatabase(dbname) => {
+	    
+	    val e = Error("Database does not exist")
+	    val success = AffectedRows(1)
+	    Databases.drop(dbname).fold[ExecutionResult](e)(_ => success)
+	  }
 	  case c => Error("Not implemented yet: "+c)
 	}
 }

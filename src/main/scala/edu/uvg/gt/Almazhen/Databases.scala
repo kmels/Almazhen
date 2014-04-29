@@ -14,7 +14,6 @@ object Databases {
    */
   def create(dbname: String): Option[Database] = {
     val databases = dbList
-//    println(Filesystem.readFile(this.DB_METAFILE))
     
     if (databases.exists(db => db.name == dbname)){
       //db already exists
@@ -32,5 +31,22 @@ object Databases {
   def setDatabasesTo(databases: List[Database]): Unit = {
     val serialized_dbs = databases.asJson.toString
     Filesystem.writeFile(this.DB_METAFILE, serialized_dbs)
+  }
+  
+  /**
+   * Drops an existent database.
+   * 
+   * If the database does not exist, None is returned.
+   * Otherwise, the just-dropped database is returned 
+   */
+  def drop(dbname: String): Option[Database] = {
+    val dbs = dbList
+    val maybeDB = dbs.find(_.name == dbname)
+    
+    maybeDB.fold[Option[Database]](None)(db => {
+      //delete and return it
+      setDatabasesTo(dbs.filter(_ != db))
+      Some(db)
+    })
   }
 }

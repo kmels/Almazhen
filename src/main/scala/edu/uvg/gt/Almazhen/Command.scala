@@ -2,15 +2,13 @@ package edu.uvg.gt.Almazhen
 
 abstract class Command
 
-case class CreateDatabase(databaseName : String) extends Command
+case class CreateDatabase(databaseName: String) extends Command
 
 //TODO
-case class AlterDatabase(name : String,newName : String) extends Command
+case class AlterDatabase(name: String, newName: String) extends Command
 
-//TODO
-case class DropDatabase(databaseName : String) extends Command
+case class DropDatabase(databaseName: String) extends Command
 
-//TODO
 case class ShowDatabases extends Command
 
 //TODO
