@@ -7,6 +7,8 @@ package edu.uvg.gt.Almazhen
 import java.io.{InputStreamReader, BufferedReader}
 import java.util.Scanner;
 
+case class Database(name: String, table_count: Int)
+
 case class ColumnDefinition(name: String, typ: AZtype)
 
 case class Predicate
