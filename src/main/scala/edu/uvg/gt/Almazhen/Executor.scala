@@ -16,5 +16,13 @@ object Executor {
 	    val success = AffectedRows(1)
 	    Databases.create(dbname).fold[ExecutionResult](e)(_ => success)
 	  }
+	  
+	  case ShowDatabases() => {
+	    val dbs = Databases.dbList.map(_.name)
+	    println(dbs.mkString("\n"))
+	    AffectedRows(0)
+	  }
+	  
+	  case c => Error("Not implemented yet: "+c)
 	}
 }
