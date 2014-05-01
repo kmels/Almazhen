@@ -41,6 +41,7 @@ object Databases {
       return None
     }else{
       val newdb = Database(dbname, 0)
+      Filesystem.makeDirectory(dbname)
       val updated_dbs = databases :+ newdb
       this.setDatabasesTo(updated_dbs)
       return Some(newdb)
@@ -64,8 +65,10 @@ object Databases {
     	  Left(Executor.DATABASE_ALREADY_EXISTS(newName))
     	else{
     	  val dbs = dbList.mapConserve(db => {
-    	    if (db.name == oldName)
+    	    if (db.name == oldName){
+    	    	Filesystem.renameFile(oldDb.name, newName)
     	    	oldDb.copy(name = newName)
+    	    }
 	    	else
 	    		db
     	  })
@@ -97,8 +100,10 @@ object Databases {
     val dbs = dbList
     val maybeDB = dbs.find(_.name == dbname)
     
+    
     maybeDB.fold[Option[Database]](None)(db => {
       //delete and return it
+      Filesystem.removeDirectory(db.name)
       setDatabasesTo(dbs.filter(_ != db))
       Some(db)
     })
