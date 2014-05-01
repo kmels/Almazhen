@@ -2,3 +2,4 @@
 *.cache
 project/target/*
 */target*
+target\*

@@ -10,7 +10,8 @@ object Parser extends StandardTokenParsers {
 
   //lexical.delimiters ++= Set("=","/",",")
 
-  def command: Parser[Command] = createDBCommandParser ||| showDBCommandParser ||| dropDBCommandParser
+  def command: Parser[Command] = createDBCommandParser ||| showDBCommandParser ||| dropDBCommandParser |||
+  	useDBCommandParser
 
   def createDBCommandParser: Parser[CreateDatabase] = "CREATE" ~> "DATABASE" ~> ident ^^ {
     case name => CreateDatabase(name)

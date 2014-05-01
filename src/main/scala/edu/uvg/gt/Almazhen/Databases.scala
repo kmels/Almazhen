@@ -6,15 +6,27 @@ import argonaut._, Argonaut._
 object Databases {
 	final val DB_METAFILE = "databases.meta"
 	implicit def DatabasesJson: CodecJson[Database] = casecodec2(Database.apply, Database.unapply)("name", "tables_count")
-	  
+	private var currentDatabase: Option[Database] = None
 	
-	def current : Option[Database] = {
-	  val dbs = dbList
-	  if (dbs.nonEmpty)
-	    Some(dbs.head)
-	  else
-	    None
+	private def findByName(dbname: String): Option[Database] = dbList.find(_.name == dbname)
+	
+	/**
+	 * Changes the current database in use
+	 * 
+	 * If the database name exists, the database object is returned. Otherwise, we return None
+	 */
+	def use(dbname: String): Option[Database] = this.findByName(dbname) match {
+	  case Some(db) => {
+	    currentDatabase = Some(db)
+	    current
+	  }
+	  case _ => None
 	}
+	
+	/**
+	 * Returns the current database
+	 */
+	def current : Option[Database] = currentDatabase
 	
   /**
    * Creates a new database.
