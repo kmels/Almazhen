@@ -111,11 +111,17 @@ object Parser extends StandardTokenParsers {
     case colName ~ "=" ~ newValue => Assignment(colName , newValue)
   }
 
-  def columnSpec: Parser[ColumnDefinition] = ident ~ ("INT" | "FLOAT" | "DATE" | "CHAR") ^^ {
-    case name ~ "INT" => ColumnDefinition(name, IntType)
-    case name ~ "FLOAT" => ColumnDefinition(name, FloatType)
-    case name ~ "DATE" => ColumnDefinition(name, DateType)
-    case name ~ "CHAR" => ColumnDefinition(name, CharType)
+  def columnSpec: Parser[ColumnDefinition] = ident ~ aType ^^ {
+    case id ~ typ => ColumnDefinition(id, typ)
+  }
+  
+  def aType: Parser[AZtype] = intType ||| floatType ||| dateType ||| varchar
+  
+  def intType = "INT" ^^ { case "INT" => IntType}
+  def floatType = "FLOAT" ^^ { case "FLOAT" => IntType}
+  def dateType = "DATE" ^^ { case "DATE" => IntType}
+  def varchar: Parser[VARCHAR] = "CHAR" ~> "(" ~> numericLit <~ ")" ^^ {
+    case size => VARCHAR(size.toInt)
   }
 
   def restriction: Parser[Constraint] = pk_restriction ||| fk_restriction ||| ch_restriction 

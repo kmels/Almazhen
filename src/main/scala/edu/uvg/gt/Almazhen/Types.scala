@@ -16,16 +16,15 @@ case class Table(name: String, cols: List[ColumnDefinition], restrictions: List[
 case class ColumnDefinition(name: String, typ: AZtype) 
 
 object Implicits { 
-  //implicit def columnDefListJson: EncodeJson[List[ColumnDefinition] = Json.array(elements)
-  
   implicit def ColumnDefinitionsJson : CodecJson[ColumnDefinition] = casecodec2(ColumnDefinition.apply, ColumnDefinition.unapply)("name","type")
+  
   implicit def AZtypeEncodeJson: EncodeJson[AZtype] =
     EncodeJson((a: AZtype) =>
       ("theType" := (a match {
         case IntType => "Int"
         case FloatType => "Float"
         case DateType => "Date" 
-        case CharType => "Char" 
+        case VARCHAR(n) => "Char" 
       }) ) ->: jEmptyObject)
       
   implicit def AZtypeDecodeJson: DecodeJson[AZtype] =
@@ -36,7 +35,7 @@ object Implicits {
 		    	  case "Int" => IntType
 		    	  case "Float" => FloatType
 		    	  case "Date" => DateType
-		    	  case "Char" => CharType
+		    	  case "Char" => VARCHAR(20) //TODO
 		    	})
     		)
     
@@ -73,7 +72,7 @@ abstract class AZtype
 object IntType extends AZtype
 object FloatType extends AZtype
 object DateType extends AZtype
-object CharType extends AZtype
+case class VARCHAR(size: Int) extends AZtype
 
 class Constraint
 case class Pk_key(name: String, cols: List[String]) extends Constraint
