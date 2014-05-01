@@ -7,6 +7,15 @@ object Databases {
 	final val DB_METAFILE = "databases.meta"
 	implicit def DatabasesJson: CodecJson[Database] = casecodec2(Database.apply, Database.unapply)("name", "tables_count")
 	  
+	
+	def current : Option[Database] = {
+	  val dbs = dbList
+	  if (dbs.nonEmpty)
+	    Some(dbs.head)
+	  else
+	    None
+	}
+	
   /**
    * Creates a new database.
    * 
