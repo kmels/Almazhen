@@ -88,7 +88,7 @@ object Parser extends StandardTokenParsers {
     case tableName ~ "SET" ~ theColumns ~ "WHERE" ~ newValues => UpdateCommand(tableName, theColumns, newValues)
   }
 
-  def predicate: Parser[Predicate] = ident ^^ { case _ => Predicate()}
+  def predicate: Parser[Predicate] = ident ^^ { case _ => Predicate("")}
 
   def deleteCommandParser: Parser[Delete] = "DELETE"~"FROM" ~> ident ~ "WHERE" ~ predicate ^^{
     case tableName ~"WHERE"~thePredicate => Delete(tableName, thePredicate)

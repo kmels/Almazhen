@@ -11,11 +11,13 @@ import argonaut._, Argonaut._
 
 case class Database(name: String, table_count: Int)
 
-case class Table(name: String, cols: List[String/*ColumnDefinition*/], restrictions: List[String/*Constraint*/])
+case class Table(name: String, cols: List[ColumnDefinition], restrictions: List[Constraint])
 
 case class ColumnDefinition(name: String, typ: AZtype) 
 
 object Implicits { 
+  //implicit def columnDefListJson: EncodeJson[List[ColumnDefinition] = Json.array(elements)
+  
   implicit def ColumnDefinitionsJson : CodecJson[ColumnDefinition] = casecodec2(ColumnDefinition.apply, ColumnDefinition.unapply)("name","type")
   implicit def AZtypeEncodeJson: EncodeJson[AZtype] =
     EncodeJson((a: AZtype) =>

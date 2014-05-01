@@ -9,7 +9,8 @@ import java.io.File
 
 object Tables {
 	final val TB_METAFILE = "tables.meta"
-	implicit def TablesJson: CodecJson[Table] = casecodec3(Table.apply, Table.unapply) ("name", "restrictions", "columns")
+	import Implicits._
+	implicit def TablesJson: CodecJson[Table] = casecodec3(Table.apply, Table.unapply) ("name", "columns", "restrictions")
 
   /**
    * Creates a new table.
@@ -17,22 +18,22 @@ object Tables {
    * If the database exists, it's left intact and None is returned.
    * If user hasn't set the current database, None is returned.
    */
-  def create(tbName: String, tbCols: List[String/*ColumnDefinition*/], tbRestrictions: List[String/*Restriction*/]): Option[Table] = {
-    val tables = tbList
-
-    if (tables.exists(table => table.name == tbName)){
-      //the table already exists
+  def create(tbName: String, tbCols: List[ColumnDefinition], tbRestrictions: List[Constraint]): Option[Table] = {
+    if (Databases.current.nonEmpty)  {
+	  
+    	val tables = tbList
+	    if (tables.exists(table => table.name == tbName)){
+	      //the table already exists
+	      return None
+	    }else{      
+	      
+		      val newtb = Table(tbName, tbCols, tbRestrictions)
+		      val updated_tbs = tables :+ newtb
+		      this.setTablesTo(updated_tbs)
+		      return Some(newtb)
+	    }
+    } else { 
       return None
-    }else{      
-      if (Databases.current.nonEmpty)  {
-	      val newtb = Table(tbName, tbCols, tbRestrictions)
-	      val updated_tbs = tables :+ newtb
-	      this.setTablesTo(updated_tbs)
-	      return Some(newtb)  
-      }
-      else
-        return None
-        
     }
   }	
 	
