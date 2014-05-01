@@ -111,10 +111,8 @@ object Parser extends StandardTokenParsers {
     case name ~ "CHAR" => ColumnDefinition(name, CharType)
   }
 
-  def restriction:Parser[Restriction] = (pk_restriction | fk_restriction | ch_restriction) ^^ {
-    case _ => Restriction() //fix constructor and type definition
-  }
-
+  def restriction: Parser[Constraint] = pk_restriction ||| fk_restriction ||| ch_restriction 
+  
   def pk_restriction:Parser[Pk_key] = pkNameParser ~ "PRIMARY" ~ "KEY" ~ "(" ~ repsep(ident,",") <~")" ^^ {
     case pkName ~ "PRIMARY" ~ "KEY" ~ "(" ~ columns => Pk_key(pkName, columns)
   }
