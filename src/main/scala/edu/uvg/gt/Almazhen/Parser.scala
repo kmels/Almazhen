@@ -124,7 +124,7 @@ object Parser extends StandardTokenParsers {
     case pkName ~ "PRIMARY" ~ "KEY" ~ "(" ~ columns => Pk_key(pkName, columns)
   }
 
-  def fk_restriction:Parser[Fk_key] = foreignKeyName ~ "FOREIGN"~"KEY"~"(" ~ repsep(ident,",") ~ ")" ~ "REFERENCES" ~ ident ~ "("~repsep(ident,",")<~")" ^^ {
+  def fk_restriction:Parser[Fk_key] = foreignKeyName ~ "FOREIGN" ~ "KEY" ~ "(" ~ repsep(ident,",") ~ ")" ~ "REFERENCES" ~ ident ~ "("~repsep(ident,",")<~")" ^^ {
     case fkName ~"FOREIGN"~"KEY"~"(" ~ columns ~")"~"REFERENCES"~referencedTableName~"("~ referencedColumns => Fk_key(fkName, columns.zip(referencedColumns))
   }
 
@@ -133,8 +133,8 @@ object Parser extends StandardTokenParsers {
   }
   
   def primaryKeyName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.PkNameLit]) ^^ (_.chars)
-  def foreignKeyName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.FkNameLit]) ^^ (_.chars)
-  def checkName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.CheckNameLit]) ^^ (_.chars)
+  def foreignKeyName: Parser[String] = elem("foreign key", _.isInstanceOf[lexical.FkNameLit]) ^^ (_.chars)
+  def checkName: Parser[String] = elem("check key", _.isInstanceOf[lexical.CheckNameLit]) ^^ (_.chars)
 
   
   def parse(s:String):Option[Command] = {

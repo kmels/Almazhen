@@ -16,21 +16,32 @@ object Main extends App{
     Console.flush();
 
     val buffer = new BufferedReader(new InputStreamReader(System.in));
-    val input = buffer.readLine();
+    var input = buffer.readLine();
 
+    if (input.equals(":it")){
+      print("Your command: "+ConsoleHistory.last + "\n")
+      parseAndExec(ConsoleHistory.last)
+    }else{
+      parseAndExec(input)
+    }
+    
+    
+  }
+
+  def parseAndExec(input: String): Unit = {
     val parseResult : Option[Command] = Parser.parse(input)
     val cmdParseResult = parseResult.toString()
     
     parseResult match {
       case Some(cmd) => {
+        ConsoleHistory.append(input)
         val result = Executor.exec(cmd)
         println(result)
       }
       case _ => println("Unknown command. Try `help`")
     }
-
+    
     if (input != "exit")
-      loop
+	  loop
   }
-
 }
