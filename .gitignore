@@ -2,3 +2,8 @@
 *.cache
 project/target/*
 */target*
+*target/*
+*.classpath
+*.iml
+*.project
+*idea/*
