@@ -24,8 +24,6 @@ object Main extends App{
     }else{
       parseAndExec(input)
     }
-    
-    
   }
 
   def parseAndExec(input: String): Unit = {
