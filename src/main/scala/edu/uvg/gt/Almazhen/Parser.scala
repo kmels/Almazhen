@@ -2,18 +2,25 @@ package edu.uvg.gt.Almazhen
 
 import scala.util.parsing.combinator.RegexParsers
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
+import scala.util.parsing.combinator.lexical.StdLexical
+import scala.util.parsing.input.CharSequenceReader.EofCh
+import scala.collection.mutable.HashSet
 
 object Parser extends StandardTokenParsers {
-  lexical.reserved ++= Set("CREATE", "DATABASE", "ALTER", "DROP", "SHOW", "DATABASES", "USE", "TABLE", "PRIMARY", "KEY", "FOREIGN"
-    , "CHECK", "INT", "FLOAT", "DATE", "CHAR", "AND", "OR", "NOT", "RENAME", "TO", "ADD", "COLUMN", "CONSTRAINT", "TABLES", "COLUMNS",
-    "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL")
+  override val lexical = new Lexer
 
-  //lexical.delimiters ++= Set("=","/",",")
+  def command: Parser[Command] = createDB ||| showDatabases ||| dropDB |||
+  	useDBCommandParser ||| alterDBCommandParser ||| createTable 
+  	
+/*  def tst: Parser[Command] = pk_restriction ^^ {
+    case a => {
+      println("Parsed kmels")
+      println(a)
+      ShowTables()
+    }
+  }*/
 
-  def command: Parser[Command] = createDBCommandParser ||| showDBCommandParser ||| dropDBCommandParser |||
-  	useDBCommandParser ||| alterDBCommandParser
-
-  def createDBCommandParser: Parser[CreateDatabase] = "CREATE" ~> "DATABASE" ~> ident ^^ {
+  def createDB: Parser[CreateDatabase] = "CREATE" ~> "DATABASE" ~> ident ^^ {
     case name => CreateDatabase(name)
   }
 
@@ -21,11 +28,11 @@ object Parser extends StandardTokenParsers {
     case name ~ "RENAME" ~ "TO" ~ newName => AlterDatabase(name, newName)
   }
 
-  def dropDBCommandParser: Parser[DropDatabase] = "DROP" ~> "DATABASE" ~> ident ^^ {
+  def dropDB: Parser[DropDatabase] = "DROP" ~> "DATABASE" ~> ident ^^ {
     case name => DropDatabase(name)
   }
 
-  def showDBCommandParser: Parser[ShowDatabases] = "SHOW" ~ "DATABASES" ^^ {
+  def showDatabases: Parser[ShowDatabases] = "SHOW" ~ "DATABASES" ^^ {
     case _ => ShowDatabases()
   }
 
@@ -33,8 +40,7 @@ object Parser extends StandardTokenParsers {
     case name => UseDatabase(name)
   }
 
-
-  def createTBCommandParser: Parser[CreateTable] = "CREATE" ~> "TABLE" ~> ident ~ "(" ~ repsep(columnSpec, ",") ~ "CONSTRAINT" ~ repsep(restriction, ",") <~ ")" ^^ {
+  def createTable: Parser[CreateTable] = "CREATE" ~> "TABLE" ~> ident ~ "(" ~ repsep(columnSpec, ",") ~ "CONSTRAINT" ~ repsep(restriction, ",") <~ ")" ^^ {
     case name ~ "(" ~ cs ~ "CONSTRAINT" ~ re => CreateTable(name, cs, re)
   }
 
@@ -114,22 +120,23 @@ object Parser extends StandardTokenParsers {
 
   def restriction: Parser[Constraint] = pk_restriction ||| fk_restriction ||| ch_restriction 
   
-  def pk_restriction:Parser[Pk_key] = pkNameParser ~ "PRIMARY" ~ "KEY" ~ "(" ~ repsep(ident,",") <~")" ^^ {
+  def pk_restriction:Parser[Pk_key] = primaryKeyName ~ "PRIMARY" ~ "KEY" ~ "(" ~ repsep(ident,",") <~")" ^^ {
     case pkName ~ "PRIMARY" ~ "KEY" ~ "(" ~ columns => Pk_key(pkName, columns)
   }
 
-  def pkNameParser: Parser[String] = ident // """Pk_(\w+)?""".r ^^ { i => i}
-  def fkNameParser: Parser[String] = ident// """Fk_(\w+)?""".r ^^ { i => i}
-  def chNameParser: Parser[String] = ident //"""Pk_(\w+)?""".r ^^ { i => i}
-
-  def fk_restriction:Parser[Fk_key] = fkNameParser ~ "FOREIGN"~"KEY"~"(" ~ repsep(ident,",") ~ ")" ~ "REFERENCES" ~ ident ~ "("~repsep(ident,",")<~")" ^^ {
+  def fk_restriction:Parser[Fk_key] = foreignKeyName ~ "FOREIGN"~"KEY"~"(" ~ repsep(ident,",") ~ ")" ~ "REFERENCES" ~ ident ~ "("~repsep(ident,",")<~")" ^^ {
     case fkName ~"FOREIGN"~"KEY"~"(" ~ columns ~")"~"REFERENCES"~referencedTableName~"("~ referencedColumns => Fk_key(fkName, columns.zip(referencedColumns))
   }
 
-  def ch_restriction:Parser[Ch_key] = chNameParser ~ "CHECK" ~ "(" ~ predicate ~ ")" ^^ {
+  def ch_restriction:Parser[Ch_key] = checkName ~ "CHECK" ~ "(" ~ predicate ~ ")" ^^ {
     case name ~"CHECK"~"(" ~ thePredicate ~ ")" => Ch_key(name, thePredicate)
   }
+  
+  def primaryKeyName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.PkNameLit]) ^^ (_.chars)
+  def foreignKeyName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.FkNameLit]) ^^ (_.chars)
+  def checkName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.CheckNameLit]) ^^ (_.chars)
 
+  
   def parse(s:String):Option[Command] = {
     val tokens = new lexical.Scanner(s)
 
@@ -138,4 +145,38 @@ object Parser extends StandardTokenParsers {
       case _ => None
     }
   }
+}
+
+class Lexer extends StdLexical{
+  override def token:Parser[Token] = 
+    ( 
+    'P' ~> 'K' ~> '_' ~> rep(identChar | digit)         ^^ { name => PkNameLit(name.mkString)}
+    | 'F' ~> 'K' ~> '_' ~> rep(identChar | digit)         ^^ { name => FkNameLit(name.mkString)}
+    | 'C' ~> 'H' ~> '_' ~> rep(identChar | digit)         ^^ { name => CheckNameLit(name.mkString)}
+    | identChar ~ rep( identChar | digit )              ^^ { case first ~ rest => processIdent(first :: rest mkString "") }
+    | digit ~ rep( digit )                              ^^ { case first ~ rest => NumericLit(first :: rest mkString "") }
+    | '\'' ~ (letter|digit) ~ '\''                              ^^ { case '\'' ~ char ~ '\'' => CharLit(char.toString) }
+    | '\'' ~ rep( chrExcept('\'', '\n', EofCh) ) ~ '\'' ^^ { case '\'' ~ chars ~ '\'' => StringLit(chars mkString "") }
+    | '\"' ~ rep( chrExcept('\"', '\n', EofCh) ) ~ '\"' ^^ { case '\"' ~ chars ~ '\"' => StringLit(chars mkString "") } 
+    | EofCh                                             ^^^ EOF
+    | '\'' ~> failure("unclosed string literal")        
+    | '\"' ~> failure("unclosed string literal")        
+    | delim                                             
+    | failure("illegal character")
+    )
+    
+  case class CharLit(val chars:String) extends Token {
+    override def toString = "'"+chars+"'"
+  }
+  
+  case class PkNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
+  case class FkNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
+  case class CheckNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
+  
+  reserved ++= Set("CREATE", "DATABASE", "ALTER", "DROP", "SHOW", "DATABASES", "USE", "TABLE", "PRIMARY", "KEY", "FOREIGN"
+    , "CHECK", "INT", "FLOAT", "DATE", "CHAR", "AND", "OR", "NOT", "RENAME", "TO", "ADD", "COLUMN", "CONSTRAINT", "TABLES", "COLUMNS",
+    "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL")    
+
+    
+  delimiters ++= Set("(",")",",")
 }
