@@ -46,6 +46,39 @@ object Databases {
       return Some(newdb)
     }
   }
+	
+	/**
+	 * Changes the name of the database
+	 * 
+	 * If successful, a Right(database) is thrown; otherwise, an execution error is returned wrapped in Left
+	 */
+	def alter(oldName: String, newName: String): Either[Error, Database] = {
+	  val maybeOld = findByName(oldName)
+	  
+	  if (maybeOld.isEmpty)
+	    Left(Executor.DATABASE_DOES_NOT_EXIST(oldName))
+      else{
+        val oldDb: Database = maybeOld.get
+        
+    	if (findByName(newName).nonEmpty)
+    	  Left(Executor.DATABASE_ALREADY_EXISTS(newName))
+    	else{
+    	  val dbs = dbList.mapConserve(db => {
+    	    if (db.name == oldName)
+    	    	oldDb.copy(name = newName)
+	    	else
+	    		db
+    	  })
+    	  
+    	  setDatabasesTo(dbs)
+    	  
+    	  findByName(newName) match{
+    	    case Some(alteredDb) => Right(alteredDb)
+    	    case _ => Left(Executor.THE_IMPOSSIBLE_HAPPENED("alter table"))
+    	  }
+    	}
+	  } 
+	}
   
   def dbList : List[Database] = Filesystem.readFile(this.DB_METAFILE).decodeOption[List[Database]].getOrElse(Nil)
   
