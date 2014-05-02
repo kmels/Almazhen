@@ -1,1 +1,0 @@
-[{"name":"Persona","columns":[{"name":"nombre","type":{"size":20,"type":"Varchar"}},{"name":"edad","type":{"type":"Int"}},{"name":"fecha","type":{"type":"Int"}},{"name":"karma","type":{"type":"Int"}}],"restrictions":[]}]
