@@ -13,6 +13,7 @@ object Executor {
 	final def DATABASE_DOES_NOT_EXIST(dbname: String) = Error(s"Database $dbname doesn't exist")
 	final def DATABASE_ALREADY_EXISTS(dbname: String) = Error(s"Database $dbname exists")
 	final def TABLE_ALREADY_EXISTS(dbname: String) = Error(s"Table $dbname exists")
+	final def TABLE_DOES_NOT_EXISTS(dbname: String) = Error(s"Table $dbname doesn't exists")
 	final def THE_IMPOSSIBLE_HAPPENED(s: String) = Error(s"The impossible happened at $s")
 	
 	def exec(cmd: Command):ExecutionResult = cmd match {
@@ -22,6 +23,10 @@ object Executor {
 	  
 	  case CreateTable(tbName, columns, constraints) => {
 	    Tables.create(tbName, columns, constraints).fold[ExecutionResult](TABLE_ALREADY_EXISTS(tbName))(_ => AffectedRows(1))
+	  }
+	  
+	  case DropTable(tbName) => {
+	    Tables.drop(tbName).fold[ExecutionResult](TABLE_DOES_NOT_EXISTS(tbName))(_ => AffectedRows(1))
 	  }
 	  
 	  case ShowDatabases() => {
@@ -41,6 +46,11 @@ object Executor {
 	  case DropDatabase(dbname) => {
 	    val success = AffectedRows(1)
 	    Databases.drop(dbname).fold[ExecutionResult](DATABASE_DOES_NOT_EXIST(dbname))(_ => success)
+	  }
+	  
+	  case RenameTable(tbName, newName) => {
+	    val success = AffectedRows(1)
+	    Tables.rename(tbName, newName).fold[ExecutionResult](TABLE_DOES_NOT_EXISTS(tbName))(_ => AffectedRows(1))
 	  }
 	  
 	  case UseDatabase(dbname) => Databases.use(dbname) match{

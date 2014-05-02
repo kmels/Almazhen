@@ -10,7 +10,7 @@ object Parser extends StandardTokenParsers {
   override val lexical = new Lexer
 
   def command: Parser[Command] = createDB ||| showDatabases ||| dropDB |||
-  	useDBCommandParser ||| alterDBCommandParser ||| createTable 
+  	useDBCommandParser ||| alterDBCommandParser ||| createTable ||| dropTableCommandParser ||| renameTBCommandParser
   	
 /*  def tst: Parser[Command] = pk_restriction ^^ {
     case a => {

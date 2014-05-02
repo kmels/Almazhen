@@ -37,7 +37,12 @@ object Tables {
     }
   }	
 	
-  def tbList : List[Table] = Filesystem.readFile(Databases.current.get.name + File.separator + this.TB_METAFILE).decodeOption[List[Table]].getOrElse(Nil)
+  def tbList : List[Table] = {
+    val thefile = Filesystem.readFile(Databases.current.get.name + File.separator + this.TB_METAFILE)
+    val decodedFile = thefile.decodeOption[List[Table]]
+    val getfile = decodedFile.getOrElse(Nil)
+    return getfile
+  }
 
   def setTablesTo(tables: List[Table]): Unit = {
     val serialized_tbs = tables.asJson.toString
@@ -48,9 +53,10 @@ object Tables {
    * Drops an existent table.
    *
    * If the table does not exist, None is returned.
-   * Otherwise, the just-dropped database is returned
+   * Otherwise, the just-dropped table is returned
    */
   def drop(tbname: String): Option[Table] = {
+    val route = Databases.current.get.name + File.separator + this.TB_METAFILE
     val tbs = tbList
     val maybeTB = tbs.find(_.name == tbname)
     
@@ -61,5 +67,23 @@ object Tables {
     })
   }
   
+  /**
+   * Renames an existent table.
+   *
+   * If the table does not exist, None is returned.
+   * Otherwise, the just-renamed table is returned
+   */
+  def rename(tbname: String, newName: String): Option[Table] = {
+    val route = Databases.current.get.name + File.separator + this.TB_METAFILE
+    val tbs = tbList
+    val maybeTB = tbs.find(_.name == tbname)
+    maybeTB match {
+      case Some(t) => {
+        setTablesTo(tbs.map {case t => t.copy(name = newName)})
+        Some(t.copy(name = newName))
+      }
+      case None => None
+    }
+  }
   
 }
