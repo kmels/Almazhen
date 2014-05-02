@@ -11,7 +11,7 @@ import argonaut._, Argonaut._
 
 case class Database(name: String, table_count: Int)
 
-case class Table(name: String, cols: List[ColumnDefinition], restrictions: List[Constraint])
+case class Table(name: String, columns: List[ColumnDefinition], restrictions: List[Constraint])
 
 case class ColumnDefinition(name: String, typ: AZtype) 
 
@@ -93,11 +93,14 @@ object FloatType extends AZtype
 object DateType extends AZtype
 case class VARCHAR(size: Int) extends AZtype
 
-class Constraint
-case class Pk_key(name: String, cols: List[String]) extends Constraint
+abstract class Constraint{
+  val name: String
+}
 
-case class Fk_key(name: String, referenced_table: String, cols: List[(String,String)]) extends Constraint
+case class Pk_key(override val name: String, cols: List[String]) extends Constraint
 
-case class Ch_key(name: String, check: Predicate) extends Constraint
+case class Fk_key(override val name: String, referenced_table: String, cols: List[(String,String)]) extends Constraint
+
+case class Ch_key(override val name: String, check: Predicate) extends Constraint
 
 case class Assignment(columnName : String, value : String )
