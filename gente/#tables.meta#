@@ -1,0 +1,5 @@
+[{"name":"Persona","columns":[
+    {"name":"nombre","type":{"theType":"Char"}},
+    {"name":"edad","type":{"theType":"Int"}}
+    ],
+"restrictions":[]}]
