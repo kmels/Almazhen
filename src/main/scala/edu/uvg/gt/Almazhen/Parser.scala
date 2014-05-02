@@ -9,9 +9,11 @@ import scala.collection.mutable.HashSet
 object Parser extends StandardTokenParsers {
   override val lexical = new Lexer
 
-  def command: Parser[Command] = createDB ||| showDatabases ||| dropDB |||
-  	useDBCommandParser ||| alterDBCommandParser ||| createTable ||| dropTableCommandParser ||| renameTBCommandParser |||
-  	addColumn
+  def command: Parser[Command] = 
+  	/* kmels */
+  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn 
+  	/* paulo */
+  	createTable ||| showTables ||| dropTable ||| renameTable
   	
 /*  def tst: Parser[Command] = pk_restriction ^^ {
     case a => {
@@ -25,7 +27,7 @@ object Parser extends StandardTokenParsers {
     case name => CreateDatabase(name)
   }
 
-  def alterDBCommandParser: Parser[AlterDatabase] = "ALTER" ~> "DATABASE" ~> ident ~ "RENAME" ~ "TO" ~ ident ^^ {
+  def alterDB: Parser[AlterDatabase] = "ALTER" ~> "DATABASE" ~> ident ~ "RENAME" ~ "TO" ~ ident ^^ {
     case name ~ "RENAME" ~ "TO" ~ newName => AlterDatabase(name, newName)
   }
 
@@ -37,7 +39,7 @@ object Parser extends StandardTokenParsers {
     case _ => ShowDatabases()
   }
 
-  def useDBCommandParser: Parser[UseDatabase] = "USE" ~> "DATABASE" ~> ident ^^ {
+  def useDB: Parser[UseDatabase] = "USE" ~> "DATABASE" ~> ident ^^ {
     case name => UseDatabase(name)
   }
 
@@ -45,7 +47,7 @@ object Parser extends StandardTokenParsers {
     case name ~ "(" ~ cs ~ "CONSTRAINT" ~ re => CreateTable(name, cs, re)
   }
 
-  def renameTBCommandParser: Parser[RenameTable] = "ALTER" ~> "TABLE" ~> ident ~ "RENAME" ~ "TO" ~ ident ^^ {
+  def renameTable: Parser[RenameTable] = "ALTER" ~> "TABLE" ~> ident ~ "RENAME" ~ "TO" ~ ident ^^ {
     case name ~ "RENAME" ~ "TO" ~ newName => RenameTable(name, newName)
   }
 
@@ -65,11 +67,11 @@ object Parser extends StandardTokenParsers {
     case name ~ "DROP" ~ "CONSTRAINT" ~ consName => DropConstraint(name, consName)
   }
 
-  def dropTableCommandParser: Parser[DropTable] = "DROP" ~> "TABLE" ~> ident ^^ {
+  def dropTable: Parser[DropTable] = "DROP" ~> "TABLE" ~> ident ^^ {
     case tableName => DropTable(tableName)
   }
 
-  def showTablesCommandParser: Parser[ShowTables] = "SHOW" ~> "TABLES" ^^{
+  def showTables: Parser[ShowTables] = "SHOW" ~> "TABLES" ^^{
     case _ => ShowTables()
   }
 
