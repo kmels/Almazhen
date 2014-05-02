@@ -9,7 +9,7 @@ import scala.collection.mutable.HashSet
 object Parser extends StandardTokenParsers {
   override val lexical = new Lexer
 
-  def command: Parser[Command] = createDB ||| showDatabases ||| dropDB |||
+  def command: Parser[Command] = createDB ||| showDatabases ||| dropDB ||| showTablesCommandParser |||
   	useDBCommandParser ||| alterDBCommandParser ||| createTable ||| dropTableCommandParser ||| renameTBCommandParser
   	
 /*  def tst: Parser[Command] = pk_restriction ^^ {
