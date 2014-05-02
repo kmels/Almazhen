@@ -11,7 +11,7 @@ object Parser extends StandardTokenParsers {
 
   def command: Parser[Command] = 
   	/* kmels */
-  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn 
+  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn |||
   	/* paulo */
   	createTable ||| showTables ||| dropTable ||| renameTable
   	
