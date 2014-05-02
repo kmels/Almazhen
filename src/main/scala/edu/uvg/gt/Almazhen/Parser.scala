@@ -118,8 +118,8 @@ object Parser extends StandardTokenParsers {
   def aType: Parser[AZtype] = intType ||| floatType ||| dateType ||| varchar
   
   def intType = "INT" ^^ { case "INT" => IntType}
-  def floatType = "FLOAT" ^^ { case "FLOAT" => IntType}
-  def dateType = "DATE" ^^ { case "DATE" => IntType}
+  def floatType = "FLOAT" ^^ { case "FLOAT" => FloatType}
+  def dateType = "DATE" ^^ { case "DATE" => DateType}
   def varchar: Parser[VARCHAR] = "CHAR" ~> "(" ~> numericLit <~ ")" ^^ {
     case size => VARCHAR(size.toInt)
   }
@@ -131,7 +131,7 @@ object Parser extends StandardTokenParsers {
   }
 
   def fk_restriction:Parser[Fk_key] = foreignKeyName ~ "FOREIGN" ~ "KEY" ~ "(" ~ repsep(ident,",") ~ ")" ~ "REFERENCES" ~ ident ~ "("~repsep(ident,",")<~")" ^^ {
-    case fkName ~"FOREIGN"~"KEY"~"(" ~ columns ~")"~"REFERENCES"~referencedTableName~"("~ referencedColumns => Fk_key(fkName, columns.zip(referencedColumns))
+    case fkName ~"FOREIGN"~"KEY"~"(" ~ columns ~")"~"REFERENCES"~referencedTableName~"("~ referencedColumns => Fk_key(fkName, referencedTableName, columns.zip(referencedColumns))
   }
 
   def ch_restriction:Parser[Ch_key] = checkName ~ "CHECK" ~ "(" ~ predicate ~ ")" ^^ {

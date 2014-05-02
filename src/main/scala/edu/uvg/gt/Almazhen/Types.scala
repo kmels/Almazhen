@@ -18,49 +18,68 @@ case class ColumnDefinition(name: String, typ: AZtype)
 object Implicits { 
   implicit def ColumnDefinitionsJson : CodecJson[ColumnDefinition] = casecodec2(ColumnDefinition.apply, ColumnDefinition.unapply)("name","type")
   
-  implicit def AZtypeEncodeJson: EncodeJson[AZtype] =
-    EncodeJson((a: AZtype) =>
-      ("theType" := (a match {
-        case IntType => "Int"
-        case FloatType => "Float"
-        case DateType => "Date" 
-        case VARCHAR(n) => "Char" 
-      }) ) ->: jEmptyObject)
-      
-  implicit def AZtypeDecodeJson: DecodeJson[AZtype] =
-    DecodeJson(c => for {
-			      theType <- (c --\ "theType").as[String]
-			    }  
-		    	yield (theType match{
-		    	  case "Int" => IntType
-		    	  case "Float" => FloatType
-		    	  case "Date" => DateType
-		    	  case "Char" => VARCHAR(20) //TODO
-		    	})
-    		)
-    
-    implicit def ConstraintEncodeJson : EncodeJson[Constraint] = EncodeJson(encodeConstraint)
-    implicit def ConstraintDecodeJson : DecodeJson[Constraint] = DecodeJson(decodeConstraint)
-    
-    def encodeConstraint(a: Constraint): argonaut.Json = a match{
-    	case Pk_key(name, cols) => 
-    	  (("theType" := "pk_key") ->: ("name" := name) ->: ("cols" := cols) ->: jEmptyObject)
-    	case Fk_key(name, cols) => 
-    	  (("theType" := "fk_key") ->: ("name" := name) ->: ("cols" := cols) ->: jEmptyObject)
-    	case Ch_key(name, check) => 
-    	  (("theType" := "ch_key") ->: ("name" := name) ->: ("predicate" := "theCheck") ->: jEmptyObject)  
-    }
+  /*
+   * AZType codec
+   */
+  implicit def AZToJson: EncodeJson[AZtype] = EncodeJson(atype => atype match {
+    case IntType => ("type" := "Int") ->: jEmptyObject
+    case FloatType => ("type" := "Float") ->: jEmptyObject
+    case DateType => ("type" := "Date") ->: jEmptyObject
+    case VARCHAR(size) => ("type" := "Varchar") ->: 
+    					  ("size" := jNumber(size)) ->: 
+    					  jEmptyObject 
+  })
   
-	def decodeConstraint(c: argonaut.HCursor): DecodeResult[Pk_key] = 
-	  
-	  //return Pk_key((c --\ "name").as[String], (c --\ "cols").as[List[String]])
-	  
-	  for {
-      theType <- (c --\ "theType").as[String]
-      name <- (c --\ "name").as[String]
-      cols <- (c --\ "cols").as[List[String]]
-    } yield ( Pk_key(name, cols) )
-	
+  implicit def AZFromJson: DecodeJson[AZtype] = DecodeJson(c => for{
+	  typ <- (c --\ "type").as[String]
+	  size <- (c --\ "size").as[Int]
+  } yield typ match {
+    case "Int" => IntType
+    case "Float" => FloatType
+    case "Date" => DateType
+    case "Varchar" => VARCHAR(size)
+  })
+  
+  /**
+   * Constraint codec
+   */
+  implicit def ConstraintToJson: EncodeJson[Constraint] = EncodeJson(constraint => constraint match {
+    case Pk_key(name, cols) => ("type" := "PK") ->: 
+    						   ("name" := name) ->: 
+    						   ("columns" := jArray(cols map {col => jString(col)} )) ->:
+    						   jEmptyObject
+    						   
+    case Fk_key(name, referenced_table, col_refs) => ("type" := "FK") ->: 
+    						   						 ("name" := name) ->: 
+    						   					     ("referenced_table" := referenced_table) ->:
+    						   					     ("column_refs" := jArray(col_refs map toRefJson)) ->: 
+    						   					     jEmptyObject
+    						   					     
+    case Ch_key(name, predicate) => 
+      						  ("type" := "CH") ->:
+    						  ("name" := name) ->:
+    						  ("exp" := predicate.toString) ->:
+    						  jEmptyObject
+  })
+  
+  def toRefJson(xs: (String,String)): Json = xs match {
+    case (local_col, ref_col) => ("local_col" := local_col) ->: 
+    							 ("ref_col"   := ref_col) ->: 
+    						     jEmptyObject
+  }
+  
+  implicit def JsonToConstraint: DecodeJson[Constraint] = DecodeJson(c => for {
+	typ <- (c --\ "type").as[String]
+	name <- (c --\ "name").as[String]
+	columns <- (c --\ "columns").as[List[String]]
+	referenced_table <- (c --\ "referenced_table").as[String]
+	column_refs <- (c --\ "column_refs").as[List[(String,String)]]
+	exp <- (c --\ "exp").as[String]
+  } yield typ match{
+    case "PK" => Pk_key(name, columns)
+    case "FK" => Fk_key(name, referenced_table, column_refs)
+    case "CH" => Ch_key(name, Predicate(exp))
+  });
 }
 
 case class Predicate(expression: String)
@@ -77,7 +96,7 @@ case class VARCHAR(size: Int) extends AZtype
 class Constraint
 case class Pk_key(name: String, cols: List[String]) extends Constraint
 
-case class Fk_key(name: String, cols: List[(String,String)]) extends Constraint
+case class Fk_key(name: String, referenced_table: String, cols: List[(String,String)]) extends Constraint
 
 case class Ch_key(name: String, check: Predicate) extends Constraint
 
