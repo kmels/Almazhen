@@ -12,38 +12,73 @@ object Tables {
 	import Implicits._
 	implicit def TablesJson: CodecJson[Table] = casecodec3(Table.apply, Table.unapply) ("name", "columns", "restrictions")
 
+	private def findByName(tbname: String): Either[Error, Table] = {
+	  val maybeTables = tbList 
+	  maybeTables match {
+		
+		  case Left(e) => Left(e)
+		  
+		  case Right(tableList) => {
+		    val maybeTable = tableList.find(_.name == tbname)
+		    if (maybeTable.isEmpty)
+		      Left(Executor.TABLE_DOES_NOT_EXISTS(tbname))
+	      else
+	        Right(maybeTable.get)
+		  }
+	  }
+	}
+	
   /**
    * Creates a new table.
    *
    * If the database exists, it's left intact and None is returned.
    * If user hasn't set the current database, None is returned.
    */
-  def create(tbName: String, tbCols: List[ColumnDefinition], tbRestrictions: List[Constraint]): Option[Table] = {
-    if (Databases.current.nonEmpty)  {
-	  
-    	val tables = tbList
-	    if (tables.exists(table => table.name == tbName)){
-	      //the table already exists
-	      return None
-	    }else{      
-	      
-		      val newtb = Table(tbName, tbCols, tbRestrictions)
-		      val updated_tbs = tables :+ newtb
-		      this.setTablesTo(updated_tbs)
-		      return Some(newtb)
-	    }
-    } else { 
-      return None
+  def create(tbName: String, tbCols: List[ColumnDefinition], tbRestrictions: List[Constraint]): Either[Error, Table] = {
+    
+    val maybeTables = tbList 
+    
+    maybeTables match {
+      case Left(e) => Left(e)
+      
+      case Right(tableList) => {
+        if (tableList.exists(table => table.name == tbName))
+        {
+          return Left(Executor.DATABASE_ALREADY_EXISTS(tbName))
+        }  
+        else {      	      
+	      val newtb = Table(tbName, tbCols, tbRestrictions)
+	      val updated_tbs = tableList :+ newtb
+	      this.setTablesTo(updated_tbs)
+	      return Right(newtb)
+        }
+      }
+      
     }
+    
   }	
 	
-  def tbList : List[Table] = {
-    val thefile = Filesystem.readFile(Databases.current.get.name + File.separator + this.TB_METAFILE)
-    val decodedFile = thefile.decodeOption[List[Table]]
-    val getfile = decodedFile.getOrElse(Nil)
-    return getfile
+  def tbList : Either[Error,List[Table]] = {
+    val maybeTB = Databases.current 
+    
+    if (maybeTB.isEmpty)
+      Left(Executor.DATABASE_NOT_SELECTED)
+    else {
+    	val selectedDb = maybeTB.get  
+	    val thefile = Filesystem.readFile(selectedDb.name + File.separator + this.TB_METAFILE)
+	    val decodedFile = thefile.decodeOption[List[Table]]
+	    val getfile = decodedFile.getOrElse(Nil)
+	    
+	    getfile match{
+    	    case Nil => Left(Executor.THE_IMPOSSIBLE_HAPPENED("get table list"))
+    	    case _ => Right(getfile)
+    	  }
+    }
   }
-
+  
+  /**
+   * Sync table list
+   */
   def setTablesTo(tables: List[Table]): Unit = {
     val serialized_tbs = tables.asJson.toString
     Filesystem.writeFile(Databases.current.get.name + File.separator + this.TB_METAFILE, serialized_tbs)
@@ -55,16 +90,43 @@ object Tables {
    * If the table does not exist, None is returned.
    * Otherwise, the just-dropped table is returned
    */
-  def drop(tbname: String): Option[Table] = {
-    val route = Databases.current.get.name + File.separator + this.TB_METAFILE
-    val tbs = tbList
-    val maybeTB = tbs.find(_.name == tbname)
+  def drop(tbname: String): Either[Error,Table] = {
     
-    maybeTB.fold[Option[Table]](None)(tb => {
-      //delete and return it
-      setTablesTo(tbs.filter(_ != tb))
-      Some(tb)
-    })
+    val maybeTB = findByName(tbname)
+    
+    maybeTB match {
+      case Left(e) => Left(e)
+      
+      case Right(table) => {
+        val maybeList = tbList
+        maybeList match {
+          case Left(e) => Left(e)
+      
+          case Right(tableList) => {
+        	  setTablesTo(tableList.filter(_ != table))
+        	  Right(table)
+          }
+        }
+        
+      }
+    }
+    
+  }
+  
+  /**
+   * Gets the columns associated with a table
+   * 
+   * Returns an error if table doesn't exists
+   */
+  def getCols(tbName: String): Either[Error, List[ColumnDefinition]] = {
+    val maybeTB = findByName(tbName)
+    maybeTB match {
+      case Left(e) => Left(e)
+      
+      case Right(singleTable) => {
+        Right(singleTable.cols)
+      }
+    }
   }
   
   /**
@@ -73,16 +135,38 @@ object Tables {
    * If the table does not exist, None is returned.
    * Otherwise, the just-renamed table is returned
    */
-  def rename(tbname: String, newName: String): Option[Table] = {
-    val route = Databases.current.get.name + File.separator + this.TB_METAFILE
-    val tbs = tbList
-    val maybeTB = tbs.find(_.name == tbname)
-    maybeTB match {
-      case Some(t) => {
-        setTablesTo(tbs.map {case t => t.copy(name = newName)})
-        Some(t.copy(name = newName))
+  def rename(tbname: String, newName: String): Either[Error, Table] = {
+    val maybeOld = findByName(tbname)
+	
+    maybeOld match {
+      case Left(e) => Left(e)
+      case Right(oldTB) => {
+        tbList match {
+          case Left(e) => Left(e)
+          case Right(tbs) => {
+            val probableConflict = tbs.find(_.name == newName)
+            
+            if (probableConflict.isEmpty) {
+              val updatedtbs = tbs.mapConserve(tb => {
+	    	    if (tb.name == tbname){
+	    	    	oldTB.copy(name = newName)
+	    	    }
+		    	else
+		    		tb
+	    	  })
+	    	  
+	    	  setTablesTo(updatedtbs)
+	    	  findByName(newName) match{
+	    	    case Right(alteredDb) => Right(alteredDb)
+	    	    case _ => Left(Executor.THE_IMPOSSIBLE_HAPPENED("alter table"))
+	    	  }
+            }
+            else {
+              Left(Executor.TABLE_ALREADY_EXISTS(newName))
+            }
+          }
+        }
       }
-      case None => None
     }
   }
   
