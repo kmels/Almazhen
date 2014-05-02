@@ -15,6 +15,8 @@ object Executor {
 	final def TABLE_ALREADY_EXISTS(dbname: String) = Error(s"Table $dbname exists")
 	final def TABLE_DOES_NOT_EXISTS(dbname: String) = Error(s"Table $dbname doesn't exists")
 	final def THE_IMPOSSIBLE_HAPPENED(s: String) = Error(s"The impossible happened at $s")
+	final def COLUMN_EXISTS(colname: String) = Error(s"Column $colname exists")
+	final def CONSTRAINT_EXISTS(tablename: String, constraintname: String) = Error(s"Constraint $constraintname exists on table $tablename")
 	
 	def exec(cmd: Command):ExecutionResult = cmd match {
 	  case CreateDatabase(dbname) => {
@@ -63,6 +65,11 @@ object Executor {
 	    case Left(e) => e
 	  }
 
+	  case AddColumn(tableName, columnDefinition, constraints) => Tables.addColumn(tableName, columnDefinition, constraints) match{
+	    case Right(table) => AffectedRows(1)
+	    case Left(e) => e
+	  }
+	    
 	  case c => Error("Not implemented yet: "+c)
 	}
 }

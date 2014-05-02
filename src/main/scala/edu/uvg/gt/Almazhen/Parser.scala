@@ -10,7 +10,8 @@ object Parser extends StandardTokenParsers {
   override val lexical = new Lexer
 
   def command: Parser[Command] = createDB ||| showDatabases ||| dropDB |||
-  	useDBCommandParser ||| alterDBCommandParser ||| createTable ||| dropTableCommandParser ||| renameTBCommandParser
+  	useDBCommandParser ||| alterDBCommandParser ||| createTable ||| dropTableCommandParser ||| renameTBCommandParser |||
+  	addColumn
   	
 /*  def tst: Parser[Command] = pk_restriction ^^ {
     case a => {
@@ -48,8 +49,8 @@ object Parser extends StandardTokenParsers {
     case name ~ "RENAME" ~ "TO" ~ newName => RenameTable(name, newName)
   }
 
-  def addColumnCommandParser: Parser[AddColumn] = "ALTER" ~> "TABLE" ~> ident ~ "ADD" ~ "COLUMN" ~ columnSpec ~ "CONSTRAINT" ~ repsep(restriction, ",") ^^{
-    case name ~ "ADD" ~ "COLUMN" ~ colName ~ "CONSTRAINT" ~ theRestriction => AddColumn(name, colName, theRestriction)
+  def addColumn: Parser[AddColumn] = "ALTER" ~> "TABLE" ~> ident ~ "ADD" ~ "COLUMN" ~ columnSpec ~ "CONSTRAINT" ~ repsep(restriction, ",") ^^{
+    case table_name ~ "ADD" ~ "COLUMN" ~ colName ~ "CONSTRAINT" ~ theRestriction => AddColumn(table_name, colName, theRestriction)
   }
 
   def addConstraintCommandParser: Parser[AddConstraint] = "ALTER" ~> "TABLE" ~> ident ~ "ADD" ~ "CONSTRAINT" ~ restriction ^^ {
