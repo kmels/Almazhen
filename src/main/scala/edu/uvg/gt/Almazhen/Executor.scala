@@ -45,6 +45,14 @@ object Executor {
 	    AffectedRows(0)
 	  }
 	  
+	  case ShowTables() => {
+	    
+	    val dbNames = Tables.tbList.map(db => db.name)
+	    
+	    println(dbNames.mkString("\n"))
+	    AffectedRows(0)
+	  }
+	  
 	  case DropDatabase(dbname) => {
 	    val success = AffectedRows(1)
 	    Databases.drop(dbname).fold[ExecutionResult](DATABASE_DOES_NOT_EXIST(dbname))(_ => success)
