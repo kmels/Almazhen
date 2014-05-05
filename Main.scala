@@ -18,7 +18,7 @@ object Main extends App{
     val buffer = new BufferedReader(new InputStreamReader(System.in));
     var input = buffer.readLine();
 
-    if (input.equals(":it")){
+    if ((input != null) && (input.equals(":it"))){
       print("Your command: "+ConsoleHistory.last + "\n")
       parseAndExec(ConsoleHistory.last)
     }else{

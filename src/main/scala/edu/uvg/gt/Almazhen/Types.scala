@@ -92,7 +92,11 @@ object Implicits {
 
 case class Predicate(expression: String)
 
-case class OrderBy(expression : String, order : String)
+case class OrderBy(expression : String, orderDirection : OrderByDirection = ASCOrder)
+
+abstract class OrderByDirection
+object ASCOrder extends OrderByDirection
+object DESCOrder extends OrderByDirection
 
 abstract class AZtype
 

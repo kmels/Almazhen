@@ -6,12 +6,21 @@ import java.text.ParseException
 import scalaz._, Scalaz._
 import argonaut._, Argonaut._
 
+import java.util.Date
+
 case class ColumnValue(column_name: String, column_value: String){
   override def toString = column_value
 }
 
 case class Row(values: List[ColumnValue]){
-  override def toString = values.mkString("\t")
+  var projection: List[String] = List()
+  
+  override def toString = {
+    val vals: List[String] = values.flatMap((v => if (!projection.contains(v.column_name)) None else Some(v.column_value)))
+    vals.mkString("\t")
+  }
+  
+  def setProjection(ps: List[String]): Unit = projection = ps
 }
 
 object Rows{
@@ -83,14 +92,78 @@ object Rows{
     }
   }
   
-  def selectFrom(db: Database, table: Table, projections: Option[List[String]], predicate: Option[Predicate], orderby: List[OrderBy]): Either[Error,ExecutionResult] = {
+  def selectFrom(db: Database, table: Table, projections: Option[List[String]], predicate: Option[Predicate], orderbyList: List[OrderBy]): Either[Error,ExecutionResult] = {
     log("selecting from "+table.name)
     
-    val projectToColumns: List[String] = projections.fold[List[String]](table.columns.map(_.name))(xs => xs)
+    val projectColumns: List[String] = projections.fold[List[String]](table.columns.map(_.name))(xs => xs)
+       
+    val rows:List[Row] = predicate match{
+      case None => getRows(db, table)
+      case Some(p) => List()
+    }
     
-    val rows = getRows(db, table)
+    log("Ordering by fields: "+ orderbyList)
+    val orderedRows: List[Row] = orderRows(table, orderbyList, rows)
     
-    Right(ShowRows(projectToColumns, rows))
+    log("Setting projection list to "+projectColumns.mkString(","))
+    
+    orderedRows.foreach(_.setProjection(projectColumns))
+    
+    
+    Right(ShowRows(projectColumns, orderedRows))
+  }  
+  
+  object RowOrdering extends scala.math.Ordering[(Option[ColumnDefinition], Option[ColumnValue])] {
+    val df = new SimpleDateFormat("yyyy-MM-dd")
+    
+	  def compare(a: (Option[ColumnDefinition], Option[ColumnValue]), b:(Option[ColumnDefinition], Option[ColumnValue])) = {
+      println("Comarping "+ a._2.get + " to "+b._2.get)
+        a._1 match{
+	    case None => 0
+	    case Some(coldef) => a._2 match {
+	      case None => 0
+	      case Some(ColumnValue(_, x)) => coldef.typ match{
+	        case IntType => { 
+	          val z= x.toInt compare b._2.get.column_value.toInt
+	          println("ya man" + z)
+	          z} 
+	        case FloatType => x.toFloat compare b._2.get.column_value.toFloat
+	        case DateType => df.parse(x).getTime() compare df.parse(b._2.get.column_value).getTime()
+	        case _ => x compare b._2.get.column_value
+	      }
+	    }
+	  }
+    }
+  }
+  
+  implicit def rowOrdering = RowOrdering
+  
+  def orderRows(table: Table, order: List[OrderBy], rows: List[Row]): List[Row] = order match{
+    case Nil => rows
+    case (head :: tail) => {
+    	log ("Ordering " + rows.size + " rows by "+head.expression)
+    	val columnDef = table.columns.find(_.name == head.expression)
+    	
+    	val sorted = rows.sortBy(row => {
+    		val columnVal = row.values.find(v => v.column_name == head.expression)
+    		(columnDef,columnVal)
+    	})
+    	
+    	sorted.foreach(_.setProjection(order.map(_.expression)))
+    	println("Sorted!")
+    	println(sorted)
+    	if (head.orderDirection == ASCOrder)
+    		orderRows(table, tail , sorted)
+		else
+		    orderRows(table, tail, sorted.reverse)
+    }
+      /*rows.sortBy(row => table.columns.find(_.name == head) match{
+      case None => error(Executor.COLUMN_DOES_NOT_EXISTS(head.expression).toString)
+      case Some(ColumnDefinition(colname, typ)) =>  row.values.find(_.column_name == colname) match{
+        case Some(colvalue) => colvalue.column_value
+        case None => Left(Executor.THE_IMPOSSIBLE_HAPPENED("at orderRows"))
+      }
+    })*/
   }
   
   def writeRows(db: Database, table: Table, rows: List[Row]) = Filesystem.writeFile(db.name + "/" + table.name + ".data", rows.asJson.toString)

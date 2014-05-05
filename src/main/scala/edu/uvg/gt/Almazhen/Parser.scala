@@ -103,25 +103,25 @@ object Parser extends StandardTokenParsers {
 
   def selectRows: Parser[SelectCommand] = selectAll ||| selectAndProject
   
-  def selectAndProject: Parser[SelectCommand] = "SELECT" ~> repsep(ident,",") ~"FROM" ~ ident  ~ opt("WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,","))  ^^{ /// definir predicate
-    case projections ~ "FROM" ~ tableName  ~ whereClause => whereClause match{
-      case None => SelectCommand(Some(projections), tableName)
-      case Some(s) => s match{
-        case "WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ orderby => SelectCommand(Some(projections), tableName, Some(predicate), orderby)
-      }
-    }
+  def selectAndProject: Parser[SelectCommand] = "SELECT" ~> repsep(ident,",") ~"FROM" ~ ident  ~ whereClause ~ orderClause  ^^ {
+    case projections ~ "FROM" ~ tableName  ~ whereClause ~ orderClause => SelectCommand(Some(projections), tableName, whereClause, orderClause)
+  }
+  
+  def whereClause: Parser[Option[Predicate]] = opt("WHERE" ~> predicate)
+  
+  def orderClause: Parser[List[OrderBy]] = opt("ORDER" ~> "BY" ~> repsep(orderByExpr,",")) ^^{
+    case None => List()
+    case Some(seps) => seps
   }
 
-  def selectAll: Parser[SelectCommand] = "SELECT" ~> "*" ~> "FROM" ~> ident ~ opt("WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,","))  ^^{ /// definir predicate
-    case tableName ~ None => SelectCommand(None, tableName)
-    case tablename ~ Some(whereClause) => whereClause match{
-      case "WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ orderby => SelectCommand(None, tablename, Some(predicate), orderby)
-    }
+  def selectAll: Parser[SelectCommand] = "SELECT" ~> "*" ~> "FROM" ~> ident ~ whereClause ~ orderClause ^^{ 
+    case tableName ~ p ~ o => SelectCommand(None, tableName, p, o)
   }
 
-  def orderByExpr: Parser[OrderBy] = ident/*expr*/~("ASC"|"DESC")^^ {
-    case expression ~ "ASC" => OrderBy(expression, "asc")
-    case expression ~ "DESC" => OrderBy(expression, "desc")
+  def orderByExpr: Parser[OrderBy] = ident/*expr*/~ opt("ASC"|"DESC")^^ {
+    case exp ~ None => OrderBy(exp, ASCOrder)
+    case expression ~ Some("ASC") => OrderBy(expression, ASCOrder)
+    case expression ~ Some("DESC") => OrderBy(expression, DESCOrder)
   }
 
   def assignment: Parser[Assignment] = ident~"="~ident ^^ {
