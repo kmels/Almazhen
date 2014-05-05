@@ -89,8 +89,8 @@ object Parser extends StandardTokenParsers {
     case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => InsertWithColumns(tableName, theColumns, newValues)
   }*/
 
-  def updateRows: Parser[UpdateCommand] = "UPDATE" ~> ident ~ "SET" ~ repsep(assignment,",") ~ "WHERE" ~ predicate ^^{ /// definir predicate
-    case tableName ~ "SET" ~ theColumns ~ "WHERE" ~ newValues => UpdateCommand(tableName, theColumns, newValues)
+  def updateRows: Parser[UpdateCommand] = "UPDATE" ~> ident ~ "SET" ~ repsep(assignment,",") ~ opt("WHERE" ~> predicate) ^^{ /// definir predicate
+    case tableName ~ "SET" ~ theColumns ~ maybeWhereClause => UpdateCommand(tableName, theColumns, maybeWhereClause)
   }
 
   def predicate: Parser[Predicate] = (expressionOperation ~ opt(("AND"|"OR") ~ predicate )) ^^ {

@@ -198,32 +198,57 @@ object Rows{
     }
   }
   
-  private def updateColumnsWith(columns: List[ColumnValue], assignments: List[Assignment]): List[ColumnValue] = 
-    columns.mapConserve(columnValue => assignments.find(_.columnName == columnValue.column_name) match{
-      case None => columnValue
-      case Some(assignment) => columnValue.copy(column_value = assignment.value.toString)
+   private def updateColumnsWith(columnsDef:List[ColumnDefinition], columns: List[ColumnValue], assignments: List[Assignment]): Either[Error,List[ColumnValue]] = {
+    val typedAssign:List[Either[Error,ColumnValue]] = columns.map(columnValue => assignments.find(_.columnName == columnValue.column_name) match{
+      case None => Right(columnValue)
+      case Some(assignment) => {
+        val typ_ :Option[AZtype] = columnsDef.find(cd => cd.name == assignment.columnName).map(_.typ)
+        val value = assignment.value.toString
+        
+        typ_.fold[Either[Error,ColumnValue]](Left(Executor.COLUMN_DOES_NOT_EXISTS(assignment.columnName)))(columnType => {
+          if (coercesTo(value, columnType))
+            Right(columnValue.copy(column_value = value))
+          else
+            Left(Error("Incorrect type given for "+assignment.columnName))
+        })
+      }
     })
+    
+    typedAssign.find(_.isLeft) match{
+      case Some(e) => Left(e.left.get)
+      case None => Right(typedAssign.map(_.right.get))
+    }
+  }
   
   
-  def updateWhere(db: Database, table: Table, assignments: List[Assignment], predicate: Predicate) = {
+  def updateWhere(db: Database, table: Table, assignments: List[Assignment], predicate: Option[Predicate]):Either[Error,ExecutionResult] = {
     var updatecount = 0
     val originalRows: List[Row] = getRows(db, table)
     
-    val newRows: List[Row] = originalRows.map(row => {
+    val newRows: List[Either[Error,Row]] = originalRows.map(row => {
       // if row matches predicate, update
-      val matches = predicate.eval(row)
+      val matches = predicate.fold[Option[Boolean]](Some(true))(p => p.eval(row))
       
       if (matches.nonEmpty && matches.get){
         
         updatecount += 1
-        row.copy(values = updateColumnsWith(row.values, assignments))
+        updateColumnsWith(table.columns, row.values, assignments) match{
+          case Left(e) => Left(e)
+          case Right(vals) => Right(row.copy(values = vals))
+        } 
       } else
-        row  
+        Right(row)  
     })
     
-    writeRows(db, table, newRows)
     
-    Right(AffectedRows(updatecount))
+    newRows.find(_.isLeft) match {
+      case Some(l) => Left(l.left.get)
+      case None => {
+    	  writeRows(db, table, newRows.map(_.right.get))
+    
+    	  Right(AffectedRows(updatecount))
+      }
+    }
   }
   
   def writeRows(db: Database, table: Table, rows: List[Row]) = {

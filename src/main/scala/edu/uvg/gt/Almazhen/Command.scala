@@ -38,7 +38,7 @@ case class Insert(tableName : String, columnList:Option[List[String]], values : 
 //case class InsertWithColumns(tableName : String, columns : List[String], values : List[String]) extends Command
 
 //TODO
-case class UpdateCommand(tableName : String, columnValuePair : List[Assignment], check : Predicate) extends Command
+case class UpdateCommand(tableName : String, columnValuePair : List[Assignment], check : Option[Predicate]) extends Command
 
 //TODO
 case class DeleteFROM(tableName : String, check : Option[Predicate]) extends Command
