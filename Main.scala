@@ -20,26 +20,11 @@ object Main extends App{
 
     if ((input != null) && (input.equals(":it"))){
       print("Your command: "+ConsoleHistory.last + "\n")
-      parseAndExec(ConsoleHistory.last)
+      Executor.parseAndExec(ConsoleHistory.last, loop)
     }else{
-      parseAndExec(input)
+      Executor.parseAndExec(input, loop)
     }
   }
 
-  def parseAndExec(input: String): Unit = {
-    val parseResult : Option[Command] = Parser.parse(input)
-    val cmdParseResult = parseResult.toString()
-    
-    parseResult match {
-      case Some(cmd) => {
-        ConsoleHistory.append(input)
-        val result = Executor.exec(cmd)
-        println(result)
-      }
-      case _ => println("Unknown command. Try `help`")
-    }
-    
-    if (input != "exit")
-	  loop
-  }
+  
 }

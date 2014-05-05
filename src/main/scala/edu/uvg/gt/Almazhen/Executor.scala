@@ -164,6 +164,15 @@ object Executor {
 	      case None => Executor.TABLE_DOES_NOT_EXISTS(tablename)
 	    }
 	  }
+	  
+	  case ReadScript(filename: String) => Databases.current match {
+	    case None => Error("No database is selected.")
+	    case Some(db) => {	      
+	      val script = Filesystem.readFile(filename).lines
+	      script.foreach(l => parseAndExec(l,{}))
+	      ShowRows(Nil,Nil)
+	    }
+	  }
 	
 	  case c => Error("Not implemented yet: "+c)
 	}
@@ -178,4 +187,21 @@ object Executor {
 	    case Right(afrs) => Right(Benchmarked(afrs, after - now))
 	  }
 	}
+	
+	def parseAndExec(input: String, loop: => Unit): Unit = {
+	    val parseResult : Option[Command] = Parser.parse(input)
+	    val cmdParseResult = parseResult.toString()
+	    
+	    parseResult match {
+	      case Some(cmd) => {
+	        ConsoleHistory.append(input)
+	        val result = Executor.exec(cmd)
+	        println(result)
+	      }
+	      case _ => println("Unknown command. Try `help`")
+	    }
+	    
+	    if (input != "exit")
+		  loop
+	  }
 }

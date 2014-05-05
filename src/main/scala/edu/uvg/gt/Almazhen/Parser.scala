@@ -11,18 +11,15 @@ object Parser extends StandardTokenParsers {
 
   def command: Parser[Command] =
   	/* kmels */
-  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO ||| selectRows ||| deleteFROM |||
+  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO ||| 
+  	selectRows ||| deleteFROM ||| readScript |||
   	/* paulo */
   	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn ||| addConstraint ||| dropConstraint
 
-/*  def tst: Parser[Command] = pk_restriction ^^ {
-    case a => {
-      println("Parsed kmels")
-      println(a)
-      ShowTables()
-    }
-  }*/
-
+  //def listOfCommands: Parser[List[Command]] = rep(command, ",")
+  
+  def readScript: Parser[ReadScript] = "READ" ~> "SCRIPT" ~> stringLit ^^ {case f => ReadScript(f)}
+    
   def createDB: Parser[CreateDatabase] = "CREATE" ~> "DATABASE" ~> ident ^^ {
     case name => CreateDatabase(name)
   }
@@ -85,11 +82,12 @@ object Parser extends StandardTokenParsers {
   
   def maybeColumnList: Parser[Option[List[String]]] = opt(repsep(ident,","))
   def valueList: Parser[List[String]] = repsep(aValueExpr, ",")
-  def aValueExpr: Parser[String] = numericLit ||| date 
+  def aValueExpr: Parser[String] = numericLit ||| date ||| floatLit
   
-  def insertWithColumnsCommandParser: Parser[InsertWithColumns] = "INSERT" ~> "INTO" ~>  ident ~"("~repsep(ident/*string*/,",")~")"~ "VALUES" ~ "(" ~ repsep(ident, ",") <~ ")" ^^{
+  
+/*  def insertWithColumnsCommandParser: Parser[InsertWithColumns] = "INSERT" ~> "INTO" ~>  ident ~"("~repsep(ident/*string*/,",")~")"~ "VALUES" ~ "(" ~ repsep(ident, ",") <~ ")" ^^{
     case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => InsertWithColumns(tableName, theColumns, newValues)
-  }
+  }*/
 
   def updateCommandParser: Parser[UpdateCommand] = "UPDATE" ~> ident ~ "SET" ~ repsep(assignment,",") ~ "WHERE" ~ predicate ^^{ /// definir predicate
     case tableName ~ "SET" ~ theColumns ~ "WHERE" ~ newValues => UpdateCommand(tableName, theColumns, newValues)
@@ -159,7 +157,7 @@ object Parser extends StandardTokenParsers {
   def primaryKeyName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.PkNameLit]) ^^ (_.chars)
   def foreignKeyName: Parser[String] = elem("foreign key", _.isInstanceOf[lexical.FkNameLit]) ^^ (_.chars)
   def checkName: Parser[String] = elem("check key", _.isInstanceOf[lexical.CheckNameLit]) ^^ (_.chars)
-
+  def floatLit: Parser[String] = elem("floating number", _.isInstanceOf[lexical.FloatLit]) ^^ (_.chars)
   def date: Parser[String] = elem("date", _.isInstanceOf[lexical.DateLit]) ^^ (_.chars)
   
   def parse(s:String):Option[Command] = {
@@ -180,6 +178,7 @@ class Lexer extends StdLexical{
     | 'C' ~> 'H' ~> '_' ~> rep(identChar | digit)         ^^ { name => CheckNameLit(name.mkString)}
     | year ~ '-' ~ month ~ '-' ~ day ^^ { case y ~ '-' ~ m ~ '-' ~ d => DateLit(d, m, y, s"$y-$m-$d")}
     | identChar ~ rep( identChar | digit )              ^^ { case first ~ rest => processIdent(first :: rest mkString "") }
+    | digit ~ rep( digit ) ~ '.' ~ rep(digit)           ^^ { case first ~ rest ~ '.' ~ floating => FloatLit(first.toString + rest.mkString + "." + floating.mkString) }
     | digit ~ rep( digit )                              ^^ { case first ~ rest => NumericLit(first :: rest mkString "") }
     | '\'' ~ (letter|digit) ~ '\''                              ^^ { case '\'' ~ char ~ '\'' => CharLit(char.toString) }
     | '\'' ~ rep( chrExcept('\'', '\n', EofCh) ) ~ '\'' ^^ { case '\'' ~ chars ~ '\'' => StringLit(chars mkString "") }
@@ -203,11 +202,12 @@ class Lexer extends StdLexical{
   case class FkNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
   case class CheckNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
 
+  case class FloatLit(chars: String) extends Token { override def toString = chars}
   case class DateLit(day: Int, month: Int, year: Int, val chars: String) extends Token { override def toString = s"$year-$month-$day"}
   
-  reserved ++= Set("CREATE", "DATABASE", "ALTER", "DROP", "SHOW", "DATABASES", "USE", "TABLE", "PRIMARY", "KEY", "FOREIGN"
+  reserved ++= Set("SCRIPT", "CREATE", "DATABASE", "ALTER", "DROP", "SHOW", "DATABASES", "USE", "TABLE", "PRIMARY", "KEY", "FOREIGN"
     , "CHECK", "INT", "FLOAT", "DATE", "CHAR", "AND", "OR", "NOT", "RENAME", "TO", "ADD", "COLUMN", "CONSTRAINT", "TABLES", "COLUMNS",
-    "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL")
+    "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL","READ")
 
 
   delimiters ++= Set("(",")",",","*")

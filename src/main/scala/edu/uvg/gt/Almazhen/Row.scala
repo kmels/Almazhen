@@ -24,7 +24,7 @@ case class Row(values: List[ColumnValue]){
 }
 
 object Rows{
-  def log(s: String) = println(s)
+  def log(s: String) = {} //println(s)
   
   /*
    * Type checks a value string.
@@ -57,8 +57,8 @@ object Rows{
       }
     }
     
-    
-    log("column order is: " + maybeColumns)
+    if (maybeColumns.isRight)
+    	log("column order is: " + maybeColumns.right.get.map(_.name))
     
     //typed instruction
     val typedColumns: Either[Error, List[(ColumnDefinition,ColumnValue)]] = maybeColumns.fold(Left(_), columns => {
@@ -72,7 +72,7 @@ object Rows{
     	  val typeChecks = zipped.forall{case (coldef,val_) => coercesTo(val_, coldef.typ)}
     	  if (!typeChecks){
     	    val prob: (ColumnDefinition, String) = zipped.find({ case (c,v) => !coercesTo(v,c.typ)}).get
-    	    Left(Error("The value "+prob._2 + " is not of the type of "+prob._1.name))
+    	    Left(Error("The value "+prob._2.toString() + " is not of the type of "+prob._1.name))
     	  }else{
     	    val colvals: List[ColumnValue] = zipped.map{ case (coldef, val_) => ColumnValue(coldef.name, val_)}
     	    Right(columns.zip(colvals))
