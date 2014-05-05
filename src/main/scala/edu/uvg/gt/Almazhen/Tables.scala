@@ -27,7 +27,7 @@ object Tables {
 		  }
 	  }
 	}
-	
+
   def findTableByName(tbname: String):Option[Table] = findByName(tbname) match{
     case Left(_) => None
     case Right(t) => Some(t)
@@ -174,10 +174,10 @@ object Tables {
       }
     }
   }
-  
+
   /**
    * Adds a new column to a table
-   */  
+   */
   def addColumn(tableName: String, newColumn: ColumnDefinition, newConstraints: List[Constraint]):Either[Error, Table] = {
     val maybeTable = findByName(tableName)
 
@@ -186,51 +186,51 @@ object Tables {
       case Right(currentTable) => {
         if (currentTable.columns.exists(_.name == newColumn.name))
           return Left(Executor.COLUMN_EXISTS(newColumn.name))
-        
+
           val oldConstraintsNames = currentTable.restrictions.map(_.name)
           val newConstraintsNames = newConstraints.map(_.name)
-          
+
           if (oldConstraintsNames.intersect(newConstraintsNames).size > 0 )
             return Left(Executor.CONSTRAINT_EXISTS(currentTable.name, oldConstraintsNames.intersect(newConstraintsNames)(0)))
           else {
             tbList match {
               case Left(e) => Left(e) //Database not selected
               case Right(tableList) =>{
-                
+
                 val updated_tables: List[Table] = tableList.map(t =>{
                   if (t.name == currentTable.name){
                     t.copy(columns = t.columns :+ newColumn, restrictions = t.restrictions ++ newConstraints)
                   } else
     		    	t
                 })
-                
+
                 setTablesTo(updated_tables)
-                Right(currentTable)                
+                Right(currentTable)
               } //correct procedure
-              
-            }//tbList error matching           
-    		        
-            
-          } //else-constraints  
-          
+
+            }//tbList error matching
+
+
+          } //else-constraints
+
       }// case right
     }// safe maybeTable match
   } // addColumn definition
-  
+
   /**
    * Drops an old column from a table
-   */  
+   */
   def dropColumn(tableName: String, columnName: String):Either[Error, Table] = {
     val maybeTable = findByName(tableName)
 
     maybeTable match {
       case Left(e) => Left(e) //Table doesn't exists
       case Right(currentTable) => {
-        
+
         val probableColumn = currentTable.columns.find(_.name == columnName)
         if (probableColumn.isEmpty)
           return Left(Executor.COLUMN_DOES_NOT_EXISTS(columnName))
-        
+
         tbList match {
           case Left(e) => Left(e) //Database not selected
           case Right(tableList) => {
@@ -240,15 +240,88 @@ object Tables {
                   } else
     		    	t
             })
-            
-            setTablesTo(updated_tables)            
+
+            setTablesTo(updated_tables)
             Right(currentTable)
-            
+
           }
         }
-        
+
       }// case right
     }// safe maybeTable match
   } // addColumn definition
-  
+
+  /**
+   * Adds a constraint to a table
+   */
+  def addConstraint(tableName: String , newConstraint: Constraint):Either[Error, Table] = {
+    val maybeTable = findByName(tableName)
+
+    maybeTable match {
+      case Left(e) => Left(e) //Table doesn't exists
+      case Right(currentTable) => {
+        if (currentTable.restrictions.exists(_.name == newConstraint.name))
+          return Left(Executor.CONSTRAINT_EXISTS(currentTable.name, newConstraint.name))
+
+          else {
+            tbList match {
+              case Left(e) => Left(e) //Database not selected
+              case Right(tableList) =>{
+
+                val updated_tables: List[Table] = tableList.map(t =>{
+                  if (t.name == currentTable.name){
+                    t.copy(columns = t.columns , restrictions = t.restrictions :+ newConstraint)
+                  } else
+              t
+                })
+
+                setTablesTo(updated_tables)
+                Right(currentTable)
+              } //correct procedure
+
+            }//tbList error matching
+
+
+          } //else-constraints
+
+      }// case right
+    }// safe maybeTable match
+  } // addColumn definition
+
+  /**
+   * Drops a constraint from a table
+   */
+  def dropConstraint(tableName: String, oldConstraint: String):Either[Error, Table] = {
+    val maybeTable = findByName(tableName)
+
+    maybeTable match {
+      case Left(e) => Left(e) //Table doesn't exists
+      case Right(currentTable) => {
+
+        val probableColumn = currentTable.restrictions.find(_.name == oldConstraint)
+        if (probableColumn.isEmpty)
+          return Left(Executor.CONSTRAINT_DOES_NOT_EXISTS(tableName, oldConstraint))
+
+        tbList match {
+          case Left(e) => Left(e) //Database not selected
+          case Right(tableList) => {
+            val updated_tables: List[Table] = tableList.map(t =>{
+                  if (t.name == currentTable.name){
+                    t.copy(columns = t.columns, restrictions = t.restrictions.filter(_.name != oldConstraint) )
+                  } else
+              t
+            })
+
+            setTablesTo(updated_tables)
+            Right(currentTable)
+
+          }
+        }
+
+      }// case right
+    }// safe maybeTable match
+  } // addColumn definition
+
+
+
 }//tables Object
