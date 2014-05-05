@@ -5,10 +5,17 @@ package edu.uvg.gt.Almazhen
 
 
 import java.io.{InputStreamReader, BufferedReader}
-import java.util.Scanner;
+import java.util.Scanner
+import scalaz._
+import argonaut._
+
 import scalaz._, Scalaz._
 import argonaut._, Argonaut._
+
 import StringUtils._
+import java.text.SimpleDateFormat
+import java.text.ParseException
+import java.util.Date
 
 // CODE copied from: https://coderwall.com/p/lcxjzw
 object StringUtils {
@@ -21,6 +28,24 @@ object StringUtils {
            //the row has the column `str`
            case Some(colVal) => colVal.column_value.forceToInt
            case _ => strExp.forceToInt
+         }
+         
+         def toFloatOpt(implicit row: Row): Option[Float] = row.values.find(_.column_name == strExp) match{
+           //the row has the column `str`
+           case Some(colVal) => catching(classOf[NumberFormatException]) opt colVal.column_value.toFloat
+           case _ => catching(classOf[NumberFormatException]) opt strExp.toFloat
+         }
+         
+         def toDateOpt(implicit row: Row): Option[Date] = row.values.find(_.column_name == strExp) match{
+           //the row has the column `str`
+           case Some(colVal) => {
+             val df = new SimpleDateFormat("yyyy-MM-dd"); 
+             catching(classOf[ParseException]) opt (df.parse(colVal.column_value))
+           }
+           case _ => {
+             val df = new SimpleDateFormat("yyyy-MM-dd"); 
+             catching(classOf[ParseException]) opt (df.parse(strExp))
+           }
          }
          
          def toStringExpr(implicit row: Row) = row.values.find(_.column_name == strExp) match{
@@ -117,11 +142,7 @@ object Implicits {
 abstract class Predicate
 {
   def eval(implicit row:Row): Option[Boolean]
-  def compare(exp2: Predicate)(implicit row:Row): Option[Int]
-  
-  //USE intValue if NumericExpressionWrap 
-  //USE self.Expression if StringExpressionWrap 
-  
+  def compare(exp2: Predicate)(implicit row:Row): Option[Int] 
 }
 
 case class ExpressionAnd(expression1: Predicate, expression2: Predicate) extends Predicate {
@@ -142,11 +163,10 @@ case class ExpressionOr(expression1: Predicate, expression2: Predicate) extends 
 	  val maybeExp2 = expression2.eval
 	  if (maybeExp1.isDefined && maybeExp1.isDefined)
 	    Some(maybeExp1.get || maybeExp2.get)  
-    else None
+	  else None
 	}
 	
 	override def compare(exp: Predicate)(implicit row: Row) = None
-	
 }
 
 // <=
@@ -223,7 +243,7 @@ case class NotExpression(expression: Predicate) extends Predicate {
 	override def compare(exp: Predicate)(implicit row:Row) = None
 }
 
-case class NumericExpressionWrap(expression: String) extends Predicate{
+case class NumericExpressionWrap(expression: String) extends ValueLiteral(expression){
   def intValue(implicit row: Row): Option[Int] = expression.toIntOpt
   
   override def compare(exp: Predicate)(implicit row: Row) = exp match {
@@ -245,7 +265,24 @@ case class NumericExpressionWrap(expression: String) extends Predicate{
   override def eval(implicit row:Row) :Option[Boolean]= intValue.map(_ != 0 )
 }
 
-case class StringExpressionWrap(expression: String) extends Predicate{
+abstract class ValueLiteral(exp: String) extends Predicate{
+  override def toString = exp
+}
+
+case class FloatExpressionWrap(exp: String) extends ValueLiteral(exp) {
+  def floatValue(implicit row: Row): Option[Float] = exp.toFloatOpt
+  
+  override def eval(implicit row:Row) :Option[Boolean]= floatValue.map(_ => false)
+  
+  override def compare(exp: Predicate)(implicit row: Row) = ???
+}
+
+case class DateExpressionWrap(exp: String) extends ValueLiteral(exp){
+  override def compare(exp: Predicate)(implicit row: Row) = ???
+  override def eval(implicit row:Row) :Option[Boolean] = ???
+}
+
+case class StringExpressionWrap(expression: String) extends ValueLiteral(expression){
   override def compare(exp: Predicate)(implicit row: Row) = exp match{
     case StringExpressionWrap(strExpr) => {
     	val x = expression.toStringExpr
@@ -260,6 +297,16 @@ case class StringExpressionWrap(expression: String) extends Predicate{
       if (x.isDefined && y.isDefined){
         //println(" ... => "+ Integer.compare(x.get, y.get))
     	Some(Integer.compare(x.get, y.get))
+      }
+       else None
+    }
+    case FloatExpressionWrap(numeric_exp) => {
+      val x = this.expression.toFloatOpt
+      val y = numeric_exp.toFloatOpt
+      
+      //println("Comparing "+ x + " to " + y)
+      if (x.isDefined && y.isDefined){
+    	Some(x.get.compareTo(y.get))
       }
        else None
     }
@@ -293,4 +340,4 @@ case class Fk_key(override val name: String, referenced_table: String, cols: Lis
 
 case class Ch_key(override val name: String, check: Predicate) extends Constraint
 
-case class Assignment(columnName : String, value : String )
+case class Assignment(columnName : String, value : ValueLiteral )

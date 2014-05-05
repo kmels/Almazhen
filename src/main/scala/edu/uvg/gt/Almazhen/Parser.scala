@@ -12,7 +12,7 @@ object Parser extends StandardTokenParsers {
   def command: Parser[Command] =
   	/* kmels */
   	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO ||| 
-  	selectRows ||| deleteFROM ||| readScript |||
+  	selectRows ||| deleteFROM ||| readScript ||| updateRows |||
   	/* paulo */
   	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn ||| addConstraint ||| dropConstraint
 
@@ -89,7 +89,7 @@ object Parser extends StandardTokenParsers {
     case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => InsertWithColumns(tableName, theColumns, newValues)
   }*/
 
-  def updateCommandParser: Parser[UpdateCommand] = "UPDATE" ~> ident ~ "SET" ~ repsep(assignment,",") ~ "WHERE" ~ predicate ^^{ /// definir predicate
+  def updateRows: Parser[UpdateCommand] = "UPDATE" ~> ident ~ "SET" ~ repsep(assignment,",") ~ "WHERE" ~ predicate ^^{ /// definir predicate
     case tableName ~ "SET" ~ theColumns ~ "WHERE" ~ newValues => UpdateCommand(tableName, theColumns, newValues)
   }
 
@@ -124,7 +124,14 @@ object Parser extends StandardTokenParsers {
 
  def unaryExpr: Parser[Predicate] = ("NOT" ~> simpleExpression ^^ { NotExpression(_)} ||| simpleExpression)
 
- def simpleExpression: Parser[Predicate] = (ident ^^ { StringExpressionWrap(_) } ||| numericLit ^^ {NumericExpressionWrap(_)} ||| stringLit ^^ {StringExpressionWrap(_)} ||| ("(" ~> predicate <~ ")") )
+ def valueLiteral: Parser[ValueLiteral] = ident ^^ { StringExpressionWrap(_) } ||| 
+		 									numericLit ^^ {NumericExpressionWrap(_)} ||| 
+		 									stringLit ^^ {StringExpressionWrap(_)} ||| 
+		 									floatLit ^^ {FloatExpressionWrap(_)} |||
+		 									date ^^ { DateExpressionWrap(_) } 
+		 									
+ def simpleExpression: Parser[Predicate] = valueLiteral |||
+		 									("(" ~> predicate <~ ")") 
 
   def deleteFROM: Parser[DeleteFROM] = "DELETE" ~> "FROM" ~> ident ~ whereClause ^^{
     case tableName ~  predicate => DeleteFROM(tableName, predicate)
@@ -153,7 +160,7 @@ object Parser extends StandardTokenParsers {
     case expression ~ Some("DESC") => OrderBy(expression, DESCOrder)
   }
 
-  def assignment: Parser[Assignment] = ident~"="~ident ^^ {
+  def assignment: Parser[Assignment] = ident~"="~ valueLiteral ^^ {
     case colName ~ "=" ~ newValue => Assignment(colName , newValue)
   }
 

@@ -67,7 +67,7 @@ object Tables {
       case Right(tableList) => {
         if (tableList.exists(table => table.name == tbName))
         {
-          return Left(Executor.DATABASE_ALREADY_EXISTS(tbName))
+          return Left(Executor.TABLE_ALREADY_EXISTS(tbName))
         }
         else {
 	      val newtb = Table(tbName, tbCols, tbRestrictions)

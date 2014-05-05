@@ -16,7 +16,6 @@ case class ColumnValue(column_name: String, column_value: String){
 case class Row(values: List[ColumnValue]){
   var projection: List[String] = List()
   
-  
   override def toString = {
     val vals: List[String] = values.flatMap((v => if (!projection.contains(v.column_name)) None else Some(v.column_value)))
     vals.mkString("\t")
@@ -40,7 +39,7 @@ object Rows{
     case IntType => try { val a = value.toInt; return true } catch{case e: NumberFormatException => false}
     case FloatType => try { value.toFloat; return true } catch{case e: NumberFormatException => false}
     case VARCHAR(size) => value.size < size
-    case DateType => try { val df = new SimpleDateFormat("yyy-MM-dd"); df.parse(value); return true } catch { case e: ParseException => false}
+    case DateType => try { val df = new SimpleDateFormat("yyyy-MM-dd"); df.parse(value); return true } catch { case e: ParseException => false}
   }
   
   def insertInto(db: Database, table: Table, columnList:Option[List[String]], values: List[String]):Either[Error,ExecutionResult] = {
@@ -197,6 +196,34 @@ object Rows{
       writeRows(db, table, rows)
       Right(AffectedRows(oldRows.size - rows.size))
     }
+  }
+  
+  private def updateColumnsWith(columns: List[ColumnValue], assignments: List[Assignment]): List[ColumnValue] = 
+    columns.mapConserve(columnValue => assignments.find(_.columnName == columnValue.column_name) match{
+      case None => columnValue
+      case Some(assignment) => columnValue.copy(column_value = assignment.value.toString)
+    })
+  
+  
+  def updateWhere(db: Database, table: Table, assignments: List[Assignment], predicate: Predicate) = {
+    var updatecount = 0
+    val originalRows: List[Row] = getRows(db, table)
+    
+    val newRows: List[Row] = originalRows.map(row => {
+      // if row matches predicate, update
+      val matches = predicate.eval(row)
+      
+      if (matches.nonEmpty && matches.get){
+        
+        updatecount += 1
+        row.copy(values = updateColumnsWith(row.values, assignments))
+      } else
+        row  
+    })
+    
+    writeRows(db, table, newRows)
+    
+    Right(AffectedRows(updatecount))
   }
   
   def writeRows(db: Database, table: Table, rows: List[Row]) = {

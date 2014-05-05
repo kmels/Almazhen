@@ -4,7 +4,7 @@ import java.util.Date
 
 class ExecutionResult
 case class AffectedRows(n: Int) extends ExecutionResult{
-  override def toString = "Affected " + n + " rows"
+  override def toString = if (n > 0) "Affected " + n + " rows" else ""
 }
 
 case class Error(msg: String) extends ExecutionResult{
@@ -169,6 +169,17 @@ object Executor {
 	    }
 	  }
 	  
+	  case UpdateCommand(tablename, assignments, predicate) => Databases.current match {
+	    case None => Error("No database is selected.")
+	    case Some(db) => Tables.findTableByName(tablename) match {
+	      case Some(table) => benchmark(Rows.updateWhere(db, table, assignments, predicate)) match {
+	        case Left(e) => e
+	        case Right(x) => x
+	      }
+	      case None => Executor.TABLE_DOES_NOT_EXISTS(tablename)
+	    }
+	  }
+	  
 	  case ReadScript(filename: String) => {
 	      val now = (new Date()).getTime()
 	      log ("reading file ... ")
@@ -209,6 +220,7 @@ object Executor {
 	    case Right(afrs) => Right(Benchmarked(afrs, after - now))
 	  }
 	}
+	
 	
 	def parseAndExec(input: String, loop: => Unit): Unit = {
 	    val parseResult : Option[Command] = Parser.parse(input)
