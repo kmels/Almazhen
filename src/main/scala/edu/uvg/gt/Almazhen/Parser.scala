@@ -93,7 +93,34 @@ object Parser extends StandardTokenParsers {
     case tableName ~ "SET" ~ theColumns ~ "WHERE" ~ newValues => UpdateCommand(tableName, theColumns, newValues)
   }
 
-  def predicate: Parser[Predicate] = ident ^^ { case _ => Predicate("")}
+  def predicate: Parser[Predicate] = (expressionOperation ~ opt(("AND"|"OR") ~ predicate )) ^^ {
+    case exp ~ None => exp
+    case exp1 ~ Some(innerE) => innerE match{
+      case "AND" ~ exp2 => ExpressionAnd(exp1, exp2)
+      case "OR" ~ exp2 => ExpressionOr(exp1, exp2)
+    }
+    //case _ => Predicate("")
+}
+
+ def expressionOperation: Parser[Predicate] = (unaryExpr ~ opt(("<="|"<"|">"|">="|"=="|"!=") ~ expressionOperation )) ^^ {
+    case exp ~ None => exp
+    case exp1 ~ Some(innerE) => innerE match{
+      case compareSym ~ exp2 => compareSym match
+      {
+	    case "<=" => ExpressionLessOrEquals(exp1,exp2)
+		case "<" => ExpressionLess(exp1,exp2)
+		case ">" => ExpressionGreater(exp1,exp2)
+		case ">=" => ExpressionGreaterOrEquals(exp1,exp2)
+		case "=" => ExpressionEquals(exp1,exp2)
+		case "<>" => ExpressionNotEquals(exp1,exp2)
+      }
+    }
+}
+
+ def unaryExpr: Parser[Predicate] = ("NOT" ~> simpleExpression ^^ { NotExpression(_)} ||| simpleExpression)
+
+ def simpleExpression: Parser[Predicate] = ( numericLit ^^ {NumericExpressionWrap(_)} ||| stringLit ^^ {StringExpressionWrap(_)} ||| ("(" ~> predicate <~ ")") )
+
 
   def deleteFROM: Parser[DeleteFROM] = "DELETE" ~> "FROM" ~> ident ~ whereClause ^^{
     case tableName ~  predicate => DeleteFROM(tableName, predicate)
