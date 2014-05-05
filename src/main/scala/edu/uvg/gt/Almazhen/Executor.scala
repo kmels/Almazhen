@@ -11,8 +11,12 @@ case class Error(msg: String) extends ExecutionResult{
   override def toString = msg
 }
 
+case class ShowRows(colnames: List[String], rows: List[Row]) extends ExecutionResult {
+  override def toString = colnames.mkString("\t") + "\n" + rows.mkString("\n")
+}
+
 case class Benchmarked(res: ExecutionResult, milliseconds: Long) extends ExecutionResult{
-  override def toString = res + " ... in " + milliseconds + "ms"
+  override def toString = res + "\n... in " + milliseconds + "ms"
 }
 
 object Executor {
@@ -125,6 +129,17 @@ object Executor {
 	        case Right(x) => x
 	      }
 	      case None => Executor.TABLE_DOES_NOT_EXISTS(tableName)
+	    }
+	  }
+	  
+	  case SelectCommand(projections, tablename, predicate, orderby) => Databases.current match {
+	    case None => Error("No database is selected.")
+	    case Some(db) => Tables.findTableByName(tablename) match {
+	      case Some(table) => benchmark(Rows.selectFrom(db, table, projections, predicate, orderby)) match {
+	        case Left(e) => e
+	        case Right(x) => x
+	      }
+	      case None => Executor.TABLE_DOES_NOT_EXISTS(tablename)
 	    }
 	  }
 	  

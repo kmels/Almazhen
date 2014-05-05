@@ -6,9 +6,13 @@ import java.text.ParseException
 import scalaz._, Scalaz._
 import argonaut._, Argonaut._
 
-case class ColumnValue(column_name: String, column_value: String)
+case class ColumnValue(column_name: String, column_value: String){
+  override def toString = column_value
+}
 
-case class Row(values: List[ColumnValue])  
+case class Row(values: List[ColumnValue]){
+  override def toString = values.mkString("\t")
+}
 
 object Rows{
   def log(s: String) = println(s)
@@ -77,6 +81,16 @@ object Rows{
     	writeRows(db, table, rows)
     	Right(AffectedRows(1))
     }
+  }
+  
+  def selectFrom(db: Database, table: Table, projections: Option[List[String]], predicate: Option[Predicate], orderby: List[OrderBy]): Either[Error,ExecutionResult] = {
+    log("selecting from "+table.name)
+    
+    val projectToColumns: List[String] = projections.fold[List[String]](table.columns.map(_.name))(xs => xs)
+    
+    val rows = getRows(db, table)
+    
+    Right(ShowRows(projectToColumns, rows))
   }
   
   def writeRows(db: Database, table: Table, rows: List[Row]) = Filesystem.writeFile(db.name + "/" + table.name + ".data", rows.asJson.toString)
