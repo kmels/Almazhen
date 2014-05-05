@@ -40,7 +40,7 @@ case class ShowTables() extends Command
 case class ShowColumns(tableName : String) extends Command
 
 //TODO
-case class Insert(tableName : String, values : List[String]) extends Command
+case class Insert(tableName : String, columnList:Option[List[String]], values : List[String]) extends Command
 
 //TODO
 case class InsertWithColumns(tableName : String, columns : List[String], values : List[String]) extends Command

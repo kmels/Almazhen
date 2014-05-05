@@ -10,7 +10,7 @@ import java.io.File
 object Tables {
 	final val TB_METAFILE = "tables.meta"
 	import Implicits._
-	implicit def TablesJson: CodecJson[Table] = casecodec3(Table.apply, Table.unapply) ("name", "columns", "restrictions")
+	implicit def TablesJson: CodecJson[Table] = casecodec3(Table.apply, Table.unapply) ("tablename", "columns", "restrictions")
 
   /**
    * Creates a new table.

@@ -77,6 +77,17 @@ object Executor {
 	    case Right(table) => AffectedRows(1)
 	    case Left(e) => e
 	  }
+	  
+	  case Insert(tableName, columnList, values) => Databases.current match {
+	    case None => Error("No database is selected.")
+	    case Some(db) => Tables.findByName(tableName) match {
+	      case Some(table) => Rows.insertInto(db, table, columnList, values) match {
+	        case Left(e) => e
+	        case Right(x) => x
+	      }
+	      case None => Executor.TABLE_DOES_NOT_EXISTS(tableName)
+	    }
+	  }
 	    
 	  case c => Error("Not implemented yet: "+c)
 	}

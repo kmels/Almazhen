@@ -16,15 +16,15 @@ case class Table(name: String, columns: List[ColumnDefinition], restrictions: Li
 case class ColumnDefinition(name: String, typ: AZtype) 
 
 object Implicits { 
-  implicit def ColumnDefinitionsJson : CodecJson[ColumnDefinition] = casecodec2(ColumnDefinition.apply, ColumnDefinition.unapply)("name","type")
+  implicit def ColumnDefinitionsJson : CodecJson[ColumnDefinition] = casecodec2(ColumnDefinition.apply, ColumnDefinition.unapply)("name","aztype")
   
   /*
    * AZType codec
    */
   implicit def AZToJson: EncodeJson[AZtype] = EncodeJson(atype => atype match {
-    case IntType => ("type" := "Int") ->: jEmptyObject
-    case FloatType => ("type" := "Float") ->: jEmptyObject
-    case DateType => ("type" := "Date") ->: jEmptyObject
+    case IntType => ("type" := "Int") ->: ("size" := jNumber(0)) ->: jEmptyObject
+    case FloatType => ("type" := "Float") ->: ("size" := jNumber(0)) ->: jEmptyObject
+    case DateType => ("type" := "Date") ->: ("size" := jNumber(0)) ->: jEmptyObject
     case VARCHAR(size) => ("type" := "Varchar") ->: 
     					  ("size" := jNumber(size)) ->: 
     					  jEmptyObject 
@@ -47,17 +47,25 @@ object Implicits {
     case Pk_key(name, cols) => ("type" := "PK") ->: 
     						   ("name" := name) ->: 
     						   ("columns" := jArray(cols map {col => jString(col)} )) ->:
+    						   ("referenced_table" := "") ->: 
+    						   ("column_refs" := jArray(List())) ->: 
+    						   ("exp" := "") ->:
     						   jEmptyObject
     						   
     case Fk_key(name, referenced_table, col_refs) => ("type" := "FK") ->: 
     						   						 ("name" := name) ->: 
+    						   						 ("columns" := jArray(List())) ->: 
     						   					     ("referenced_table" := referenced_table) ->:
     						   					     ("column_refs" := jArray(col_refs map toRefJson)) ->: 
+    						   					     ("exp" := "") ->:
     						   					     jEmptyObject
     						   					     
     case Ch_key(name, predicate) => 
       						  ("type" := "CH") ->:
     						  ("name" := name) ->:
+    						  ("columns" := jArray(List())) ->: 
+    						  ("referenced_table" := "") ->:
+    						  ("column_refs" := jArray(List())) ->: 
     						  ("exp" := predicate.toString) ->:
     						  jEmptyObject
   })

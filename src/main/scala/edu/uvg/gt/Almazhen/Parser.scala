@@ -11,7 +11,7 @@ object Parser extends StandardTokenParsers {
 
   def command: Parser[Command] = 
   	/* kmels */
-  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn |||
+  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO |||
   	/* paulo */
   	createTable ||| showTables ||| dropTable ||| renameTable
   	
@@ -79,10 +79,14 @@ object Parser extends StandardTokenParsers {
     case tableName => ShowColumns(tableName)
   }
 
-  def insertCommandParser: Parser[Insert] = "INSERT" ~> "INTO" ~>  ident ~ "VALUES" ~ "(" ~ repsep(ident/*string*/, ",") <~ ")" ^^{
-    case tableName ~ "VALUES" ~ "(" ~ newValues => Insert(tableName, newValues)
+  def insertINTO: Parser[Insert] = "INSERT" ~> "INTO" ~> ident ~ maybeColumnList ~ "VALUES" ~ "(" ~ valueList <~ ")" ^^{
+    case tableName ~ columnList ~ "VALUES" ~ "(" ~ values => Insert(tableName, columnList, values)
   }
-
+  
+  def maybeColumnList: Parser[Option[List[String]]] = opt(repsep(ident,","))
+  def valueList: Parser[List[String]] = repsep(aValueExpr, ",")
+  def aValueExpr: Parser[String] = numericLit ||| date 
+  
   def insertWithColumnsCommandParser: Parser[InsertWithColumns] = "INSERT" ~> "INTO" ~>  ident ~"("~repsep(ident/*string*/,",")~")"~ "VALUES" ~ "(" ~ repsep(ident, ",") <~ ")" ^^{
     case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => InsertWithColumns(tableName, theColumns, newValues)
   }
@@ -144,7 +148,8 @@ object Parser extends StandardTokenParsers {
   def primaryKeyName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.PkNameLit]) ^^ (_.chars)
   def foreignKeyName: Parser[String] = elem("foreign key", _.isInstanceOf[lexical.FkNameLit]) ^^ (_.chars)
   def checkName: Parser[String] = elem("check key", _.isInstanceOf[lexical.CheckNameLit]) ^^ (_.chars)
-
+  
+  def date: Parser[String] = elem("date", _.isInstanceOf[lexical.DateLit]) ^^ (_.chars)
   
   def parse(s:String):Option[Command] = {
     val tokens = new lexical.Scanner(s)
@@ -162,6 +167,7 @@ class Lexer extends StdLexical{
     'P' ~> 'K' ~> '_' ~> rep(identChar | digit)         ^^ { name => PkNameLit(name.mkString)}
     | 'F' ~> 'K' ~> '_' ~> rep(identChar | digit)         ^^ { name => FkNameLit(name.mkString)}
     | 'C' ~> 'H' ~> '_' ~> rep(identChar | digit)         ^^ { name => CheckNameLit(name.mkString)}
+    | year ~ '-' ~ month ~ '-' ~ day ^^ { case y ~ '-' ~ m ~ '-' ~ d => DateLit(d, m, y, s"$y-$m-$d")}
     | identChar ~ rep( identChar | digit )              ^^ { case first ~ rest => processIdent(first :: rest mkString "") }
     | digit ~ rep( digit )                              ^^ { case first ~ rest => NumericLit(first :: rest mkString "") }
     | '\'' ~ (letter|digit) ~ '\''                              ^^ { case '\'' ~ char ~ '\'' => CharLit(char.toString) }
@@ -174,6 +180,10 @@ class Lexer extends StdLexical{
     | failure("illegal character")
     )
     
+  def year: Parser[Int] = digit ~ digit ~ digit ~ digit ^^ { case y1 ~ y2 ~ y3 ~ y4 => List(y1,y2,y3,y4).mkString("").toInt }
+  def month: Parser[Int] = digit ~ digit ^^ { case m1 ~ m2 => List(m1,m2).mkString("").toInt }
+  def day: Parser[Int] = digit ~ digit ^^ { case d1 ~ d2 => List(d1,d2).mkString("").toInt }
+  
   case class CharLit(val chars:String) extends Token {
     override def toString = "'"+chars+"'"
   }
@@ -181,6 +191,7 @@ class Lexer extends StdLexical{
   case class PkNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
   case class FkNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
   case class CheckNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
+  case class DateLit(day: Int, month: Int, year: Int, val chars: String) extends Token { override def toString = s"$year-$month-$day"}
   
   reserved ++= Set("CREATE", "DATABASE", "ALTER", "DROP", "SHOW", "DATABASES", "USE", "TABLE", "PRIMARY", "KEY", "FOREIGN"
     , "CHECK", "INT", "FLOAT", "DATE", "CHAR", "AND", "OR", "NOT", "RENAME", "TO", "ADD", "COLUMN", "CONSTRAINT", "TABLES", "COLUMNS",
