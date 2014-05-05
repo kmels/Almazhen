@@ -11,13 +11,14 @@ case class Error(msg: String) extends ExecutionResult{
 
 object Executor {
 	final def DATABASE_DOES_NOT_EXIST(dbname: String) = Error(s"Database $dbname doesn't exist")
-	final def DATABASE_ALREADY_EXISTS(dbname: String) = Error(s"Database $dbname exists")
-	final def TABLE_ALREADY_EXISTS(dbname: String) = Error(s"Table $dbname exists")
+	final def DATABASE_ALREADY_EXISTS(dbname: String) = Error(s"Database $dbname already exists")
+	final def TABLE_ALREADY_EXISTS(dbname: String) = Error(s"Table $dbname already exists")
 	final def TABLE_DOES_NOT_EXISTS(dbname: String) = Error(s"Table $dbname doesn't exists")
 	final def DATABASE_NOT_SELECTED = Error(s"No database is selected")
 	final def THE_IMPOSSIBLE_HAPPENED(s: String) = Error(s"The impossible happened at $s")
 	final def COLUMN_EXISTS(colname: String) = Error(s"Column $colname exists")
-	final def CONSTRAINT_EXISTS(tablename: String, constraintname: String) = Error(s"Constraint $constraintname exists on table $tablename")
+	final def CONSTRAINT_EXISTS(tablename: String, constraintname: String) = Error(s"Constraint $constraintname already exists on table $tablename")
+	final def COLUMN_DOES_NOT_EXISTS(colname: String) = Error(s"Table $colname doesn't exists")
 
 	def exec(cmd: Command):ExecutionResult = cmd match {
 	  case CreateDatabase(dbname) => {
@@ -99,12 +100,18 @@ object Executor {
 	    case Right(db) => AffectedRows(1)
 	    case Left(e) => e
 	  }
-
-	  /*case AddColumn(tableName, columnDefinition, constraints) => Tables.addColumn(tableName, columnDefinition, constraints) match{
+/*
+	  case AddColumn(tableName, columnDefinition, constraints) => Tables.addColumn(tableName, columnDefinition, constraints) match{
 	    case Right(table) => AffectedRows(1)
 	    case Left(e) => e
-	  }*/
-
+	  }
+	  
+	  case DropColumn(tableName, columnName) => Tables.dropColumn(tableName, columnName) match{
+	    case Right(table) => AffectedRows(1)
+	    case Left(e) => e
+	  }
+	    
+*/
 	  case c => Error("Not implemented yet: "+c)
 	}
 }

@@ -13,7 +13,7 @@ object Parser extends StandardTokenParsers {
   	/* kmels */
   	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn |||
   	/* paulo */
-  	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumnsCommandParser
+  	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn
 
 /*  def tst: Parser[Command] = pk_restriction ^^ {
     case a => {
@@ -59,7 +59,7 @@ object Parser extends StandardTokenParsers {
     case name ~ "ADD" ~ "CONSTRAINT" ~ theRestriction => AddConstraint(name, theRestriction)
   }
 
-  def dropColumnCommandParser: Parser[DropColumn] = "ALTER" ~> "TABLE" ~> ident ~ "DROP" ~ "COLUMN" ~ ident ^^ {
+  def dropColumn: Parser[DropColumn] = "ALTER" ~> "TABLE" ~> ident ~ "DROP" ~ "COLUMN" ~ ident ^^ {
     case name ~ "DROP" ~ "COLUMN" ~ colName => DropColumn(name, colName)
   }
 
@@ -75,7 +75,7 @@ object Parser extends StandardTokenParsers {
     case _ => ShowTables()
   }
 
-  def showColumnsCommandParser: Parser[ShowColumns] = "SHOW" ~> "COLUMNS" ~> "FROM" ~> ident ^^{
+  def showColumns: Parser[ShowColumns] = "SHOW" ~> "COLUMNS" ~> "FROM" ~> ident ^^{
     case tableName => ShowColumns(tableName)
   }
 
