@@ -1,5 +1,7 @@
 package edu.uvg.gt.Almazhen
 
+import java.util.Date
+
 class ExecutionResult
 case class AffectedRows(n: Int) extends ExecutionResult{
   override def toString = "Affected " + n + " rows"
@@ -7,6 +9,10 @@ case class AffectedRows(n: Int) extends ExecutionResult{
 
 case class Error(msg: String) extends ExecutionResult{
   override def toString = msg
+}
+
+case class Benchmarked(res: ExecutionResult, milliseconds: Long) extends ExecutionResult{
+  override def toString = res + " ... in " + milliseconds + "ms"
 }
 
 object Executor {
@@ -114,7 +120,7 @@ object Executor {
 	  case Insert(tableName, columnList, values) => Databases.current match {
 	    case None => Error("No database is selected.")
 	    case Some(db) => Tables.findTableByName(tableName) match {
-	      case Some(table) => Rows.insertInto(db, table, columnList, values) match {
+	      case Some(table) => benchmark(Rows.insertInto(db, table, columnList, values)) match {
 	        case Left(e) => e
 	        case Right(x) => x
 	      }
@@ -123,5 +129,16 @@ object Executor {
 	  }
 	  
 	  case c => Error("Not implemented yet: "+c)
+	}
+	
+	def benchmark(f: => Either[Error,ExecutionResult]): Either[Error,ExecutionResult] = {
+	  val now = (new Date()).getTime()
+	  val res = f
+	  val after = (new Date()).getTime()
+	  
+	  res match {
+	    case Left(e) => Left(e)
+	    case Right(afrs) => Right(Benchmarked(afrs, after - now))
+	  }
 	}
 }

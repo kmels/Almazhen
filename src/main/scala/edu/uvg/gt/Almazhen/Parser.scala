@@ -11,7 +11,7 @@ object Parser extends StandardTokenParsers {
 
   def command: Parser[Command] =
   	/* kmels */
-  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO |||
+  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO ||| selectRows ||| 
   	/* paulo */
   	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn
 
@@ -101,12 +101,22 @@ object Parser extends StandardTokenParsers {
     case tableName ~"WHERE"~thePredicate => Delete(tableName, thePredicate)
   }
 
-  def selectSome: Parser[SelectCommand] = "SELECT" ~> repsep(ident,",")~"FROM" ~ ident  ~ "WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,",")  ^^{ /// definir predicate
-    case projections ~ "FROM" ~ tableName  ~ "WHERE" ~ thePredicate ~ "ORDER" ~ "BY" ~ orderby => SelectCommand(projections, tableName, thePredicate, orderby)
+  def selectRows: Parser[SelectCommand] = selectAll ||| selectAndProject
+  
+  def selectAndProject: Parser[SelectCommand] = "SELECT" ~> repsep(ident,",") ~"FROM" ~ ident  ~ opt("WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,","))  ^^{ /// definir predicate
+    case projections ~ "FROM" ~ tableName  ~ whereClause => whereClause match{
+      case None => SelectCommand(Some(projections), tableName)
+      case Some(s) => s match{
+        case "WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ orderby => SelectCommand(Some(projections), tableName, Some(predicate), orderby)
+      }
+    }
   }
 
-  def selectAll: Parser[SelectCommand] = "SELECT" ~> "*" ~> "FROM" ~> ident ~ "WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,",")  ^^{ /// definir predicate
-    case tableName ~ "WHERE" ~ thePredicate ~ "ORDER" ~ "BY" ~ orderby => SelectCommand(List(), tableName, thePredicate, orderby)
+  def selectAll: Parser[SelectCommand] = "SELECT" ~> "*" ~> "FROM" ~> ident ~ opt("WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ repsep(orderByExpr,","))  ^^{ /// definir predicate
+    case tableName ~ None => SelectCommand(None, tableName)
+    case tablename ~ Some(whereClause) => whereClause match{
+      case "WHERE" ~ predicate ~ "ORDER" ~ "BY" ~ orderby => SelectCommand(None, tablename, Some(predicate), orderby)
+    }
   }
 
   def orderByExpr: Parser[OrderBy] = ident/*expr*/~("ASC"|"DESC")^^ {
@@ -199,5 +209,5 @@ class Lexer extends StdLexical{
     "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL")
 
 
-  delimiters ++= Set("(",")",",")
+  delimiters ++= Set("(",")",",","*")
 }

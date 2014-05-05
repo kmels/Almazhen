@@ -52,7 +52,7 @@ case class UpdateCommand(tableName : String, columnValuePair : List[Assignment],
 case class Delete(tableName : String, check : Predicate) extends Command
 
 //TODO
-case class SelectCommand(projections : List[String], tableName : String, check : Predicate, order : List[OrderBy] = List()) extends Command
+case class SelectCommand(projections: Option[List[String]], tableName : String, check : Option[Predicate] = None, order : List[OrderBy] = List()) extends Command
 
 //TODO
-case class SelectAll(tableName : String, check : Predicate, order : OrderBy) extends Command
+//case class SelectAll(tableName : String, check : Predicate, order : OrderBy) extends Command
