@@ -51,7 +51,6 @@ object Rows{
       case None => Right(table.columns)
       case Some(List()) => Right(table.columns) //empty list
       case Some(colnames) => {
-        println("There is a column list: "+colnames)
     	  //if some column name doesn't exist, return error
     	  if (! colnames.forall(colname => table.columns.exists(_.name == colname))){
     	    val colname = colnames.diff(table.columns.map(cl => cl.name)).head
@@ -85,6 +84,11 @@ object Rows{
     	}
     })
    
+    //check restrictions
+    //val restrictionFreeColumns: Either[Error, List[(ColumnDefinition, ColumnValue)]] = typedColumns.fold(Left(_), cols => {
+      
+    //})
+    
     //do insert
     if (typedColumns.isLeft)
       return Left(typedColumns.left.get)
@@ -102,9 +106,18 @@ object Rows{
     
     val projectColumns: List[String] = projections.fold[List[String]](table.columns.map(_.name))(xs => xs)
        
+    log("filtering by predicate " + predicate)
     val rows:List[Row] = predicate match{
       case None => getRows(db, table)
-      case Some(p) => List()
+      case Some(p) => getRows(db,table).filter(row => {
+    	implicit val rowContext = row
+        val evalRes = p.eval(rowContext)
+        //println("Meets?" +evalRes)
+        if (evalRes.nonEmpty)
+          evalRes.get 
+        else
+          false
+      })
     }
     
     log("Ordering by fields: "+ orderbyList)
@@ -170,9 +183,19 @@ object Rows{
       Right(AffectedRows(rows.size))
     }
     case Some(p) => {
-      val rows = getRows(db, table)
-      writeRows(db, table, List())
-      Right(AffectedRows(rows.size))
+      log("filtering by predicate " + p)
+      val oldRows = getRows(db,table)
+      val rows:List[Row] = oldRows.filter(row => {
+    	implicit val rowContext = row
+        val evalRes = p.eval(rowContext)
+        if (evalRes.nonEmpty)
+          !evalRes.get 
+        else
+          true
+      })
+      
+      writeRows(db, table, rows)
+      Right(AffectedRows(oldRows.size - rows.size))
     }
   }
   
@@ -210,8 +233,7 @@ object Rows{
     
     cache.get((db,table)).fold[List[Row]](List())(rows => rows)
   }
- // def dbList : List[Database] = Filesystem.readFile(this.DB_METAFILE).decodeOption[List[Database]].getOrElse(Nil)
-
+  
   implicit def RowJson: CodecJson[Row] = casecodec1(Row.apply, Row.unapply)("values")
   implicit def ColumnValueJson: CodecJson[ColumnValue] = casecodec2(ColumnValue.apply, ColumnValue.unapply)("column_name", "column_value")
 }

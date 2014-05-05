@@ -10,13 +10,24 @@ import scalaz._, Scalaz._
 import argonaut._, Argonaut._
 import StringUtils._
 
-
-
 // CODE copied from: https://coderwall.com/p/lcxjzw
 object StringUtils {
-     implicit class StringImprovements(val s: String) {
+     implicit class StringImprovements(val strExp: String) {
          import scala.util.control.Exception._
-         def toIntOpt = catching(classOf[NumberFormatException]) opt s.toInt
+         
+         def forceToInt = catching(classOf[NumberFormatException]) opt strExp.toInt
+         
+         def toIntOpt(implicit row: Row) = row.values.find(_.column_name == strExp) match{
+           //the row has the column `str`
+           case Some(colVal) => colVal.column_value.forceToInt
+           case _ => strExp.forceToInt
+         }
+         
+         def toStringExpr(implicit row: Row) = row.values.find(_.column_name == strExp) match{
+           //the row has the column `str`
+           case Some(colVal) => colVal.column_value
+           case _ => strExp
+         }
      }
 }
 
@@ -103,16 +114,18 @@ object Implicits {
 }
 
 //TODO: Implement compare 
-class Predicate
+abstract class Predicate
 {
-  def eval : Option[Boolean] = None
-  def compare(exp2: Predicate): Option[Int] = None
+  def eval(implicit row:Row): Option[Boolean]
+  def compare(exp2: Predicate)(implicit row:Row): Option[Int]
+  
   //USE intValue if NumericExpressionWrap 
   //USE self.Expression if StringExpressionWrap 
+  
 }
 
 case class ExpressionAnd(expression1: Predicate, expression2: Predicate) extends Predicate {
-	override def eval : Option[Boolean] = {
+	override def eval(implicit row:Row): Option[Boolean] = {
 	  val maybeExp1 = expression1.eval
 	  val maybeExp2 = expression2.eval
 	  if (!maybeExp1.isEmpty && !maybeExp1.isEmpty) 
@@ -120,11 +133,11 @@ case class ExpressionAnd(expression1: Predicate, expression2: Predicate) extends
 	  else None
 	}
 	  
-	
+	override def compare(exp: Predicate)(implicit row:Row) = None
 }
 
 case class ExpressionOr(expression1: Predicate, expression2: Predicate) extends Predicate {
-	override def eval : Option[Boolean] = {
+	override def eval(implicit row:Row): Option[Boolean] = {
 	  val maybeExp1 = expression1.eval
 	  val maybeExp2 = expression2.eval
 	  if (maybeExp1.isDefined && maybeExp1.isDefined)
@@ -132,71 +145,129 @@ case class ExpressionOr(expression1: Predicate, expression2: Predicate) extends 
     else None
 	}
 	
+	override def compare(exp: Predicate)(implicit row: Row) = None
+	
 }
 
+// <=
 case class ExpressionLessOrEquals(expression1: Predicate, expression2: Predicate) extends Predicate {
-	override def eval : Option[Boolean] = {
-	  val maybeCompare =expression1 compare expression2
+	override def eval(implicit row:Row): Option[Boolean] = {
+	  val maybeCompare = expression1 compare expression2
 	  if (maybeCompare.isDefined)
-	  Some(maybeCompare.get == -1 || maybeCompare.get == 0)
-	  else None
+		Some(maybeCompare.get <= 0)
+	  else 
+	    None
 	}
+	
+	override def compare(exp: Predicate)(implicit row:Row) = None
 }
 case class ExpressionLess(expression1: Predicate, expression2: Predicate) extends Predicate{
-	override def eval : Option[Boolean] = {
+	override def eval(implicit row:Row): Option[Boolean] = {
 	  val maybeCompare =expression1 compare expression2
 	  if (maybeCompare.isDefined)
-	  Some(maybeCompare.get == -1)
+	  Some(maybeCompare.get < 0)
 	  else None
 	}
+	
+	override def compare(exp: Predicate)(implicit row:Row) = None
 }
 case class ExpressionGreater(expression1: Predicate, expression2: Predicate) extends Predicate {
-	override def eval : Option[Boolean] = {
+	override def eval(implicit row:Row): Option[Boolean] = {
 	  val maybeCompare =expression1 compare expression2
 	  if (maybeCompare.isDefined)
-	  Some(maybeCompare.get == -1)
+	  Some(maybeCompare.get > 0)
 	  else None
 	}
+	
+	override def compare(exp: Predicate)(implicit row:Row) = None
 }
 case class ExpressionGreaterOrEquals(expression1: Predicate, expression2: Predicate) extends Predicate {
-	override def eval : Option[Boolean] = {
+	override def eval(implicit row:Row): Option[Boolean] = {
 	  val maybeCompare =expression1 compare expression2
 	  if (maybeCompare.isDefined)
-	  Some(maybeCompare.get == -1)
+	  Some(maybeCompare.get >= 0)
 	  else None
 	}
+	
+	override def compare(exp: Predicate)(implicit row:Row) = None
 }
 case class ExpressionEquals(expression1: Predicate, expression2: Predicate) extends Predicate {
-	override def eval : Option[Boolean] = {
+	override def eval(implicit row:Row): Option[Boolean] = {
 	  val maybeCompare =expression1 compare expression2
 	  if (maybeCompare.isDefined)
-	  Some(maybeCompare.get == -1)
+	  Some(maybeCompare.get == 0)
 	  else None
 	}
+	
+	override def compare(exp: Predicate)(implicit row:Row) = None
 }
 case class ExpressionNotEquals(expression1: Predicate, expression2: Predicate) extends Predicate{
-	override def eval : Option[Boolean] = {
+	override def eval(implicit row:Row): Option[Boolean] = {
 	  val maybeCompare =expression1 compare expression2
 	  if (maybeCompare.isDefined)
-	  Some(maybeCompare.get == -1)
+		  Some(maybeCompare.get != 0)
 	  else None
 	}
+	
+	override def compare(exp: Predicate)(implicit row:Row) = None
 }
+
 case class NotExpression(expression: Predicate) extends Predicate {
-	override def eval : Option[Boolean] = {
+	override def eval(implicit row:Row): Option[Boolean] = {
 	 val maybeExp1 = expression.eval
 	  if (maybeExp1.isDefined) 
 	    Some(!maybeExp1.get)  
 	  else None
 	}
+	
+	override def compare(exp: Predicate)(implicit row:Row) = None
 }
 
-case class NumericExpressionWrap(expression: String) extends Predicate
-{
-  def intValue : Option[Int] = expression.toIntOpt
+case class NumericExpressionWrap(expression: String) extends Predicate{
+  def intValue(implicit row: Row): Option[Int] = expression.toIntOpt
+  
+  override def compare(exp: Predicate)(implicit row: Row) = exp match {
+    case NumericExpressionWrap(numeric_exp) => {
+      val x = this.intValue
+      val y = numeric_exp.toIntOpt
+      
+      //println("Comparing "+ x + " to " + y)
+      if (x.isDefined && y.isDefined){
+        //println(" ... => "+ Integer.compare(x.get, y.get))
+    	Some(Integer.compare(x.get, y.get))
+      }
+       else None
+    }
+    case _ => None
+  }
+  
+  //0 is false, otherwise true
+  override def eval(implicit row:Row) :Option[Boolean]= intValue.map(_ != 0 )
 }
 
-case class StringExpressionWrap(expression: String) extends Predicate
+case class StringExpressionWrap(expression: String) extends Predicate{
+  override def compare(exp: Predicate)(implicit row: Row) = exp match{
+    case StringExpressionWrap(strExpr) => {
+    	val x = expression.toStringExpr
+    	val y = strExpr.toStringExpr
+    	Some(x.compareTo(y))
+    }
+    case NumericExpressionWrap(numeric_exp) => {
+      val x = this.expression.toIntOpt
+      val y = numeric_exp.toIntOpt
+      
+      //println("Comparing "+ x + " to " + y)
+      if (x.isDefined && y.isDefined){
+        //println(" ... => "+ Integer.compare(x.get, y.get))
+    	Some(Integer.compare(x.get, y.get))
+      }
+       else None
+    }
+    case _ => None
+  }
+    
+  override def eval(implicit row:Row):Option[Boolean] = None
+}
 
 
 case class OrderBy(expression : String, orderDirection : OrderByDirection = ASCOrder)

@@ -4,7 +4,7 @@ import System.Random
 import Data.Char
 
 main :: IO ()
-main = exec 5000 printRow
+main = exec 10000 printRow
 
 exec :: Int -> (Int -> IO ()) -> IO ()
 exec 0 _ = return ()

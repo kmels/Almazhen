@@ -102,7 +102,8 @@ object Parser extends StandardTokenParsers {
     //case _ => Predicate("")
 }
 
- def expressionOperation: Parser[Predicate] = (unaryExpr ~ opt(("<="|"<"|">"|">="|"=="|"!=") ~ expressionOperation )) ^^ {
+ def expressionOperation: Parser[Predicate] = 
+		 (unaryExpr ~ opt(("<="|"<"|">"|">="|"="|"<>") ~ expressionOperation )) ^^ {
     case exp ~ None => exp
     case exp1 ~ Some(innerE) => innerE match{
       case compareSym ~ exp2 => compareSym match
@@ -115,12 +116,15 @@ object Parser extends StandardTokenParsers {
 		case "<>" => ExpressionNotEquals(exp1,exp2)
       }
     }
+    case smt => {
+      println("Found something else: " + smt)
+      StringExpressionWrap(smt.toString)
+    }
 }
 
  def unaryExpr: Parser[Predicate] = ("NOT" ~> simpleExpression ^^ { NotExpression(_)} ||| simpleExpression)
 
- def simpleExpression: Parser[Predicate] = ( numericLit ^^ {NumericExpressionWrap(_)} ||| stringLit ^^ {StringExpressionWrap(_)} ||| ("(" ~> predicate <~ ")") )
-
+ def simpleExpression: Parser[Predicate] = (ident ^^ { StringExpressionWrap(_) } ||| numericLit ^^ {NumericExpressionWrap(_)} ||| stringLit ^^ {StringExpressionWrap(_)} ||| ("(" ~> predicate <~ ")") )
 
   def deleteFROM: Parser[DeleteFROM] = "DELETE" ~> "FROM" ~> ident ~ whereClause ^^{
     case tableName ~  predicate => DeleteFROM(tableName, predicate)
@@ -237,5 +241,5 @@ class Lexer extends StdLexical{
     "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL","READ")
 
 
-  delimiters ++= Set("(",")",",","*")
+  delimiters ++= Set("(",")",",","*","<=","<",">",">=","=","<>")
 }
