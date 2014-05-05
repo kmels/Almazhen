@@ -12,7 +12,7 @@ case class Error(msg: String) extends ExecutionResult{
 }
 
 case class ShowRows(colnames: List[String], rows: List[Row]) extends ExecutionResult {
-  override def toString = colnames.mkString("\t") + "\n" + rows.mkString("\n")
+  override def toString = colnames.mkString("\t") + "\n" + rows.mkString("\n") +  "\n" + "SELECT("+(rows.size)+") "
 }
 
 case class Benchmarked(res: ExecutionResult, milliseconds: Long) extends ExecutionResult{
@@ -20,6 +20,10 @@ case class Benchmarked(res: ExecutionResult, milliseconds: Long) extends Executi
 }
 
 object Executor {
+	var doIO = true;
+	
+	def log(s: String) = Rows.log(s)
+	
 	final def DATABASE_DOES_NOT_EXIST(dbname: String) = Error(s"Database $dbname doesn't exist")
 	final def DATABASE_ALREADY_EXISTS(dbname: String) = Error(s"Database $dbname already exists")
 	final def TABLE_ALREADY_EXISTS(dbname: String) = Error(s"Table $dbname already exists")
@@ -165,13 +169,31 @@ object Executor {
 	    }
 	  }
 	  
-	  case ReadScript(filename: String) => Databases.current match {
-	    case None => Error("No database is selected.")
-	    case Some(db) => {	      
-	      val script = Filesystem.readFile(filename).lines
-	      script.foreach(l => parseAndExec(l,{}))
+	  case ReadScript(filename: String) => {
+	      val now = (new Date()).getTime()
+	      log ("reading file ... ")
+	      val script = Filesystem.readFile(filename).lines.toList
+	      var after = (new Date()).getTime()
+	      log ("... done in "+ (after - now) + "ms")
+	      
+	      log ("parsing " + script.size + " lines ..")
+	      val commands = script.flatMap(Parser.parse)
+	      after = (new Date()).getTime()
+	      log ("... done in "+ (after - now) + "ms")
+	      
+	      log ("executing " + commands.size + " commands ...")
+	      Rows.flushOnEnd = false;
+	      //val results = commands.map(c => if (c.nonEmpty) exec(c.get) else Error("Could not parse"))
+	      val results = commands.map(exec)
+	      after = (new Date()).getTime()
+	      log ("... done in "+ (after - now) + "ms")
+	      
+	      Rows.flushTables
+	      Rows.flushOnEnd = true
+	      
+	      after = (new Date()).getTime()
+	      log ("... done in "+ (after - now) + "ms")
 	      ShowRows(Nil,Nil)
-	    }
 	  }
 	
 	  case c => Error("Not implemented yet: "+c)
@@ -196,9 +218,9 @@ object Executor {
 	      case Some(cmd) => {
 	        ConsoleHistory.append(input)
 	        val result = Executor.exec(cmd)
-	        println(result)
+	        if (doIO) println(result)
 	      }
-	      case _ => println("Unknown command. Try `help`")
+	      case _ => println("Unknown command. " + input + " Try `help`")
 	    }
 	    
 	    if (input != "exit")

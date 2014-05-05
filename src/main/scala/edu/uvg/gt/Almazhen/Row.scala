@@ -7,6 +7,7 @@ import scalaz._, Scalaz._
 import argonaut._, Argonaut._
 
 import java.util.Date
+import scala.collection.mutable.HashMap
 
 case class ColumnValue(column_name: String, column_value: String){
   override def toString = column_value
@@ -14,6 +15,7 @@ case class ColumnValue(column_name: String, column_value: String){
 
 case class Row(values: List[ColumnValue]){
   var projection: List[String] = List()
+  
   
   override def toString = {
     val vals: List[String] = values.flatMap((v => if (!projection.contains(v.column_name)) None else Some(v.column_value)))
@@ -24,7 +26,10 @@ case class Row(values: List[ColumnValue]){
 }
 
 object Rows{
-  def log(s: String) = {} //println(s)
+  var cache: HashMap[(Database,Table), List[Row]] = new HashMap()
+  var flushOnEnd = true;
+  
+  def log(s: String) = println(s)
   
   /*
    * Type checks a value string.
@@ -39,7 +44,7 @@ object Rows{
   }
   
   def insertInto(db: Database, table: Table, columnList:Option[List[String]], values: List[String]):Either[Error,ExecutionResult] = {
-    log("Inserting into "+table.name)
+    //log("Inserting into "+table.name)
         
     //make the column list
     val maybeColumns:Either[Error,List[ColumnDefinition]] = columnList match {
@@ -57,8 +62,8 @@ object Rows{
       }
     }
     
-    if (maybeColumns.isRight)
-    	log("column order is: " + maybeColumns.right.get.map(_.name))
+    //if (maybeColumns.isRight)
+    //	log("column order is: " + maybeColumns.right.get.map(_.name).mkString(","))
     
     //typed instruction
     val typedColumns: Either[Error, List[(ColumnDefinition,ColumnValue)]] = maybeColumns.fold(Left(_), columns => {
@@ -108,7 +113,6 @@ object Rows{
     log("Setting projection list to "+projectColumns.mkString(","))
     
     orderedRows.foreach(_.setProjection(projectColumns))
-    
     
     Right(ShowRows(projectColumns, orderedRows))
   }  
@@ -172,9 +176,40 @@ object Rows{
     }
   }
   
-  def writeRows(db: Database, table: Table, rows: List[Row]) = Filesystem.writeFile(db.name + "/" + table.name + ".data", rows.asJson.toString)
+  def writeRows(db: Database, table: Table, rows: List[Row]) = {
+    cache.put((db,table), rows)
+    
+    if (flushOnEnd)
+    	Filesystem.writeFile(db.name + "/" + table.name + ".data", rows.asJson.toString)
+    
+  }
   
-  def getRows(db:Database, table: Table): List[Row] = Filesystem.readFile(db.name + "/" + table.name + ".data").decodeOption[List[Row]].getOrElse(Nil)
+  def flushTable(dbTable: (Database, Table)) = {
+    var previous = flushOnEnd
+    
+    val maybeRows: Option[List[Row]] = cache.get(dbTable)
+    
+    if(maybeRows.nonEmpty){
+      val db = dbTable._1
+      val table = dbTable._2
+      val rows = maybeRows.get
+      Filesystem.writeFile(db.name + "/" + table.name + ".data", rows.asJson.toString)
+    }
+    
+    flushOnEnd = previous
+  }
+  
+  def flushTables: Unit = cache.keySet.foreach(flushTable)
+  
+  def getRows(db:Database, table: Table): List[Row] = {
+    
+    if (!cache.contains((db,table))){
+      val rows = Filesystem.readFile(db.name + "/" + table.name + ".data").decodeOption[List[Row]].getOrElse(Nil)
+      cache.put((db,table), rows)
+    }
+    
+    cache.get((db,table)).fold[List[Row]](List())(rows => rows)
+  }
  // def dbList : List[Database] = Filesystem.readFile(this.DB_METAFILE).decodeOption[List[Database]].getOrElse(Nil)
 
   implicit def RowJson: CodecJson[Row] = casecodec1(Row.apply, Row.unapply)("values")
