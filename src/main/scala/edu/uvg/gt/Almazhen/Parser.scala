@@ -13,7 +13,7 @@ object Parser extends StandardTokenParsers {
   	/* kmels */
   	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO |||
   	/* paulo */
-  	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn
+  	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn ||| addConstraint ||| dropConstraint
 
 /*  def tst: Parser[Command] = pk_restriction ^^ {
     case a => {
@@ -55,7 +55,7 @@ object Parser extends StandardTokenParsers {
     case table_name ~ "ADD" ~ "COLUMN" ~ colName ~ "CONSTRAINT" ~ theRestriction => AddColumn(table_name, colName, theRestriction)
   }
 
-  def addConstraintCommandParser: Parser[AddConstraint] = "ALTER" ~> "TABLE" ~> ident ~ "ADD" ~ "CONSTRAINT" ~ restriction ^^ {
+  def addConstraint: Parser[AddConstraint] = "ALTER" ~> "TABLE" ~> ident ~ "ADD" ~ "CONSTRAINT" ~ restriction ^^ {
     case name ~ "ADD" ~ "CONSTRAINT" ~ theRestriction => AddConstraint(name, theRestriction)
   }
 
@@ -63,7 +63,7 @@ object Parser extends StandardTokenParsers {
     case name ~ "DROP" ~ "COLUMN" ~ colName => DropColumn(name, colName)
   }
 
-  def dropConstraintCommandParser: Parser[DropConstraint] = "ALTER" ~> "TABLE" ~> ident ~ "DROP" ~ "CONSTRAINT" ~ ident ^^ {
+  def dropConstraint: Parser[DropConstraint] = "ALTER" ~> "TABLE" ~> ident ~ "DROP" ~ "CONSTRAINT" ~ constraintName ^^ {
     case name ~ "DROP" ~ "CONSTRAINT" ~ consName => DropConstraint(name, consName)
   }
 
@@ -132,6 +132,7 @@ object Parser extends StandardTokenParsers {
   }
 
   def restriction: Parser[Constraint] = pk_restriction ||| fk_restriction ||| ch_restriction
+  def constraintName: Parser[String] = primaryKeyName ||| foreignKeyName ||| checkName
 
   def pk_restriction:Parser[Pk_key] = primaryKeyName ~ "PRIMARY" ~ "KEY" ~ "(" ~ repsep(ident,",") <~")" ^^ {
     case pkName ~ "PRIMARY" ~ "KEY" ~ "(" ~ columns => Pk_key(pkName, columns)
