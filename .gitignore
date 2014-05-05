@@ -8,4 +8,4 @@ project/target/*
 *.project
 *idea/*
 *.meta
-.console-history
+*.console-history

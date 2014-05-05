@@ -9,12 +9,12 @@ import scala.collection.mutable.HashSet
 object Parser extends StandardTokenParsers {
   override val lexical = new Lexer
 
-  def command: Parser[Command] = 
+  def command: Parser[Command] =
   	/* kmels */
   	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO |||
   	/* paulo */
-  	createTable ||| showTables ||| dropTable ||| renameTable
-  	
+  	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn
+
 /*  def tst: Parser[Command] = pk_restriction ^^ {
     case a => {
       println("Parsed kmels")
@@ -59,7 +59,7 @@ object Parser extends StandardTokenParsers {
     case name ~ "ADD" ~ "CONSTRAINT" ~ theRestriction => AddConstraint(name, theRestriction)
   }
 
-  def dropColumnCommandParser: Parser[DropColumn] = "ALTER" ~> "TABLE" ~> ident ~ "DROP" ~ "COLUMN" ~ ident ^^ {
+  def dropColumn: Parser[DropColumn] = "ALTER" ~> "TABLE" ~> ident ~ "DROP" ~ "COLUMN" ~ ident ^^ {
     case name ~ "DROP" ~ "COLUMN" ~ colName => DropColumn(name, colName)
   }
 
@@ -75,7 +75,7 @@ object Parser extends StandardTokenParsers {
     case _ => ShowTables()
   }
 
-  def showColumnsCommandParser: Parser[ShowColumns] = "SHOW" ~> "COLUMNS" ~> "FROM" ~> ident ^^{
+  def showColumns: Parser[ShowColumns] = "SHOW" ~> "COLUMNS" ~> "FROM" ~> ident ^^{
     case tableName => ShowColumns(tableName)
   }
 
@@ -121,9 +121,9 @@ object Parser extends StandardTokenParsers {
   def columnSpec: Parser[ColumnDefinition] = ident ~ aType ^^ {
     case id ~ typ => ColumnDefinition(id, typ)
   }
-  
+
   def aType: Parser[AZtype] = intType ||| floatType ||| dateType ||| varchar
-  
+
   def intType = "INT" ^^ { case "INT" => IntType}
   def floatType = "FLOAT" ^^ { case "FLOAT" => FloatType}
   def dateType = "DATE" ^^ { case "DATE" => DateType}
@@ -131,8 +131,8 @@ object Parser extends StandardTokenParsers {
     case size => VARCHAR(size.toInt)
   }
 
-  def restriction: Parser[Constraint] = pk_restriction ||| fk_restriction ||| ch_restriction 
-  
+  def restriction: Parser[Constraint] = pk_restriction ||| fk_restriction ||| ch_restriction
+
   def pk_restriction:Parser[Pk_key] = primaryKeyName ~ "PRIMARY" ~ "KEY" ~ "(" ~ repsep(ident,",") <~")" ^^ {
     case pkName ~ "PRIMARY" ~ "KEY" ~ "(" ~ columns => Pk_key(pkName, columns)
   }
@@ -144,11 +144,11 @@ object Parser extends StandardTokenParsers {
   def ch_restriction:Parser[Ch_key] = checkName ~ "CHECK" ~ "(" ~ predicate ~ ")" ^^ {
     case name ~"CHECK"~"(" ~ thePredicate ~ ")" => Ch_key(name, thePredicate)
   }
-  
+
   def primaryKeyName: Parser[String] = elem("primary key", _.isInstanceOf[lexical.PkNameLit]) ^^ (_.chars)
   def foreignKeyName: Parser[String] = elem("foreign key", _.isInstanceOf[lexical.FkNameLit]) ^^ (_.chars)
   def checkName: Parser[String] = elem("check key", _.isInstanceOf[lexical.CheckNameLit]) ^^ (_.chars)
-  
+
   def date: Parser[String] = elem("date", _.isInstanceOf[lexical.DateLit]) ^^ (_.chars)
   
   def parse(s:String):Option[Command] = {
@@ -162,8 +162,8 @@ object Parser extends StandardTokenParsers {
 }
 
 class Lexer extends StdLexical{
-  override def token:Parser[Token] = 
-    ( 
+  override def token:Parser[Token] =
+    (
     'P' ~> 'K' ~> '_' ~> rep(identChar | digit)         ^^ { name => PkNameLit(name.mkString)}
     | 'F' ~> 'K' ~> '_' ~> rep(identChar | digit)         ^^ { name => FkNameLit(name.mkString)}
     | 'C' ~> 'H' ~> '_' ~> rep(identChar | digit)         ^^ { name => CheckNameLit(name.mkString)}
@@ -172,11 +172,11 @@ class Lexer extends StdLexical{
     | digit ~ rep( digit )                              ^^ { case first ~ rest => NumericLit(first :: rest mkString "") }
     | '\'' ~ (letter|digit) ~ '\''                              ^^ { case '\'' ~ char ~ '\'' => CharLit(char.toString) }
     | '\'' ~ rep( chrExcept('\'', '\n', EofCh) ) ~ '\'' ^^ { case '\'' ~ chars ~ '\'' => StringLit(chars mkString "") }
-    | '\"' ~ rep( chrExcept('\"', '\n', EofCh) ) ~ '\"' ^^ { case '\"' ~ chars ~ '\"' => StringLit(chars mkString "") } 
+    | '\"' ~ rep( chrExcept('\"', '\n', EofCh) ) ~ '\"' ^^ { case '\"' ~ chars ~ '\"' => StringLit(chars mkString "") }
     | EofCh                                             ^^^ EOF
-    | '\'' ~> failure("unclosed string literal")        
-    | '\"' ~> failure("unclosed string literal")        
-    | delim                                             
+    | '\'' ~> failure("unclosed string literal")
+    | '\"' ~> failure("unclosed string literal")
+    | delim
     | failure("illegal character")
     )
     
@@ -187,16 +187,17 @@ class Lexer extends StdLexical{
   case class CharLit(val chars:String) extends Token {
     override def toString = "'"+chars+"'"
   }
-  
+
   case class PkNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
   case class FkNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
   case class CheckNameLit(val chars: String) extends Token { override def toString = "'"+chars+"'"}
+
   case class DateLit(day: Int, month: Int, year: Int, val chars: String) extends Token { override def toString = s"$year-$month-$day"}
   
   reserved ++= Set("CREATE", "DATABASE", "ALTER", "DROP", "SHOW", "DATABASES", "USE", "TABLE", "PRIMARY", "KEY", "FOREIGN"
     , "CHECK", "INT", "FLOAT", "DATE", "CHAR", "AND", "OR", "NOT", "RENAME", "TO", "ADD", "COLUMN", "CONSTRAINT", "TABLES", "COLUMNS",
-    "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL")    
+    "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL")
 
-    
+
   delimiters ++= Set("(",")",",")
 }
