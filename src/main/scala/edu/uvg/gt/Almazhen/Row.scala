@@ -157,13 +157,19 @@ object Rows{
 		else
 		    orderRows(table, tail, sorted.reverse)
     }
-      /*rows.sortBy(row => table.columns.find(_.name == head) match{
-      case None => error(Executor.COLUMN_DOES_NOT_EXISTS(head.expression).toString)
-      case Some(ColumnDefinition(colname, typ)) =>  row.values.find(_.column_name == colname) match{
-        case Some(colvalue) => colvalue.column_value
-        case None => Left(Executor.THE_IMPOSSIBLE_HAPPENED("at orderRows"))
-      }
-    })*/
+  }
+  
+  def deleteFrom(db: Database, table: Table, predicate: Option[Predicate]): Either[Error, AffectedRows] = predicate match {
+    case None => {
+      val rows = getRows(db, table) 
+      writeRows(db, table, List()) //delete all
+      Right(AffectedRows(rows.size))
+    }
+    case Some(p) => {
+      val rows = getRows(db, table)
+      writeRows(db, table, List())
+      Right(AffectedRows(rows.size))
+    }
   }
   
   def writeRows(db: Database, table: Table, rows: List[Row]) = Filesystem.writeFile(db.name + "/" + table.name + ".data", rows.asJson.toString)

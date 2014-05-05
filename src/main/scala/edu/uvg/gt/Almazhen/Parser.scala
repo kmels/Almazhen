@@ -11,7 +11,7 @@ object Parser extends StandardTokenParsers {
 
   def command: Parser[Command] =
   	/* kmels */
-  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO ||| selectRows ||| 
+  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO ||| selectRows ||| deleteFROM |||
   	/* paulo */
   	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn ||| addConstraint ||| dropConstraint
 
@@ -97,8 +97,8 @@ object Parser extends StandardTokenParsers {
 
   def predicate: Parser[Predicate] = ident ^^ { case _ => Predicate("")}
 
-  def deleteCommandParser: Parser[Delete] = "DELETE"~"FROM" ~> ident ~ "WHERE" ~ predicate ^^{
-    case tableName ~"WHERE"~thePredicate => Delete(tableName, thePredicate)
+  def deleteFROM: Parser[DeleteFROM] = "DELETE" ~> "FROM" ~> ident ~ whereClause ^^{
+    case tableName ~  predicate => DeleteFROM(tableName, predicate)
   }
 
   def selectRows: Parser[SelectCommand] = selectAll ||| selectAndProject

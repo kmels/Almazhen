@@ -153,6 +153,17 @@ object Executor {
 	      case None => Executor.TABLE_DOES_NOT_EXISTS(tablename)
 	    }
 	  }
+	  
+	  case DeleteFROM(tablename, predicate) => Databases.current match {
+	    case None => Error("No database is selected.")
+	    case Some(db) => Tables.findTableByName(tablename) match {
+	      case Some(table) => benchmark(Rows.deleteFrom(db, table, predicate)) match {
+	        case Left(e) => e
+	        case Right(x) => x
+	      }
+	      case None => Executor.TABLE_DOES_NOT_EXISTS(tablename)
+	    }
+	  }
 	
 	  case c => Error("Not implemented yet: "+c)
 	}
