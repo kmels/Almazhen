@@ -8,6 +8,17 @@ import java.io.{InputStreamReader, BufferedReader}
 import java.util.Scanner;
 import scalaz._, Scalaz._
 import argonaut._, Argonaut._
+import StringUtils._
+
+
+
+// CODE copied from: https://coderwall.com/p/lcxjzw
+object StringUtils {
+     implicit class StringImprovements(val s: String) {
+         import scala.util.control.Exception._
+         def toIntOpt = catching(classOf[NumberFormatException]) opt s.toInt
+     }
+}
 
 case class Database(name: String, table_count: Int)
 
@@ -86,11 +97,107 @@ object Implicits {
   } yield typ match{
     case "PK" => Pk_key(name, columns)
     case "FK" => Fk_key(name, referenced_table, column_refs)
-    case "CH" => Ch_key(name, Predicate(exp))
+    //TODO: Fix this case (Predicate can't be initialized)
+    //case "CH" => Ch_key(name, new Predicate(exp))
   });
 }
 
-case class Predicate(expression: String)
+//TODO: Implement compare 
+class Predicate
+{
+  def eval : Option[Boolean] = None
+  def compare(exp2: Predicate): Option[Int] = None
+  //USE intValue if NumericExpressionWrap 
+  //USE self.Expression if StringExpressionWrap 
+}
+
+case class ExpressionAnd(expression1: Predicate, expression2: Predicate) extends Predicate {
+	override def eval : Option[Boolean] = {
+	  val maybeExp1 = expression1.eval
+	  val maybeExp2 = expression2.eval
+	  if (!maybeExp1.isEmpty && !maybeExp1.isEmpty) 
+	    Some(maybeExp1.get && maybeExp2.get)  
+	  else None
+	}
+	  
+	
+}
+
+case class ExpressionOr(expression1: Predicate, expression2: Predicate) extends Predicate {
+	override def eval : Option[Boolean] = {
+	  val maybeExp1 = expression1.eval
+	  val maybeExp2 = expression2.eval
+	  if (maybeExp1.isDefined && maybeExp1.isDefined)
+	    Some(maybeExp1.get || maybeExp2.get)  
+    else None
+	}
+	
+}
+
+case class ExpressionLessOrEquals(expression1: Predicate, expression2: Predicate) extends Predicate {
+	override def eval : Option[Boolean] = {
+	  val maybeCompare =expression1 compare expression2
+	  if (maybeCompare.isDefined)
+	  Some(maybeCompare.get == -1 || maybeCompare.get == 0)
+	  else None
+	}
+}
+case class ExpressionLess(expression1: Predicate, expression2: Predicate) extends Predicate{
+	override def eval : Option[Boolean] = {
+	  val maybeCompare =expression1 compare expression2
+	  if (maybeCompare.isDefined)
+	  Some(maybeCompare.get == -1)
+	  else None
+	}
+}
+case class ExpressionGreater(expression1: Predicate, expression2: Predicate) extends Predicate {
+	override def eval : Option[Boolean] = {
+	  val maybeCompare =expression1 compare expression2
+	  if (maybeCompare.isDefined)
+	  Some(maybeCompare.get == -1)
+	  else None
+	}
+}
+case class ExpressionGreaterOrEquals(expression1: Predicate, expression2: Predicate) extends Predicate {
+	override def eval : Option[Boolean] = {
+	  val maybeCompare =expression1 compare expression2
+	  if (maybeCompare.isDefined)
+	  Some(maybeCompare.get == -1)
+	  else None
+	}
+}
+case class ExpressionEquals(expression1: Predicate, expression2: Predicate) extends Predicate {
+	override def eval : Option[Boolean] = {
+	  val maybeCompare =expression1 compare expression2
+	  if (maybeCompare.isDefined)
+	  Some(maybeCompare.get == -1)
+	  else None
+	}
+}
+case class ExpressionNotEquals(expression1: Predicate, expression2: Predicate) extends Predicate{
+	override def eval : Option[Boolean] = {
+	  val maybeCompare =expression1 compare expression2
+	  if (maybeCompare.isDefined)
+	  Some(maybeCompare.get == -1)
+	  else None
+	}
+}
+case class NotExpression(expression: Predicate) extends Predicate {
+	override def eval : Option[Boolean] = {
+	 val maybeExp1 = expression.eval
+	  if (maybeExp1.isDefined) 
+	    Some(!maybeExp1.get)  
+	  else None
+	}
+}
+
+case class NumericExpressionWrap(expression: String) extends Predicate
+{
+  def intValue : Option[Int] = expression.toIntOpt
+}
+
+case class StringExpressionWrap(expression: String) extends Predicate
+
 
 case class OrderBy(expression : String, orderDirection : OrderByDirection = ASCOrder)
 
