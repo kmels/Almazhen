@@ -1,6 +1,8 @@
 package edu.uvg.gt.Almazhen
 
 import java.util.Date
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 class ExecutionResult
 case class AffectedRows(n: Int) extends ExecutionResult{
@@ -34,6 +36,7 @@ object Executor {
 	final def CONSTRAINT_EXISTS(tablename: String, constraintname: String) = Error(s"Constraint $constraintname already exists on table $tablename")
 	final def CONSTRAINT_DOES_NOT_EXISTS(tablename: String, constraintname: String) = Error(s"Constraint $constraintname doesn't exists on table $tablename")
 	final def COLUMN_DOES_NOT_EXISTS(colname: String) = Error(s"Table $colname doesn't exists")
+	final def COMMAND_CANCELED = Error(s"Command canceled!")
 
 	def exec(cmd: Command):ExecutionResult = cmd match {
 	  case CreateDatabase(dbname) => {
@@ -89,7 +92,7 @@ object Executor {
 	    maybeCols match {
 	      case Left(e) => e
 	      case Right(colList) => {
-	        val colNames = colList.map(col => col.name)
+	        val colNames = colList.map(col => col.name + " ("+col.typ.toString()+")")
 	        println(colNames.mkString("\n"))
 	        AffectedRows(0)
 	      }
@@ -97,8 +100,15 @@ object Executor {
 	  }
 
 	  case DropDatabase(dbname) => {
+	    Console.print("Are you sure you want to drop? (y/n): ")
+	    Console.flush();
+	
+	    val buffer = new BufferedReader(new InputStreamReader(System.in));
+	    var input = buffer.readLine();
+	    if ((input.equals("y"))){
 	    val success = AffectedRows(1)
 	    Databases.drop(dbname).fold[ExecutionResult](DATABASE_DOES_NOT_EXIST(dbname))(_ => success)
+	     } else (Executor.COMMAND_CANCELED)
 	  }
 
 	  case RenameTable(tbName, newName) => Tables.rename(tbName, newName) match{
@@ -121,9 +131,18 @@ object Executor {
 	    case Left(e) => e
 	  }
 
-	  case DropColumn(tableName, columnName) => Tables.dropColumn(tableName, columnName) match{
-	    case Right(table) => AffectedRows(1)
-	    case Left(e) => e
+	  case DropColumn(tableName, columnName) => {
+	    Console.print("Are you sure you want to drop? (y/n): ")
+	    Console.flush();
+	
+	    val buffer = new BufferedReader(new InputStreamReader(System.in));
+	    var input = buffer.readLine();
+	    if ((input.equals("y"))){
+		    Tables.dropColumn(tableName, columnName) match{
+			    case Right(table) => AffectedRows(1)
+			    case Left(e) => e
+			  }
+	    } else (Executor.COMMAND_CANCELED)
 	  }
 
 	  case AddConstraint(tableName, constraints) => Tables.addConstraint(tableName, constraints) match{
@@ -131,9 +150,18 @@ object Executor {
 	    case Left(e) => e
 	  }
 
-	  case DropConstraint(tableName, columnName) => Tables.dropConstraint(tableName, columnName) match{
+	  case DropConstraint(tableName, columnName) => {
+	    Console.print("Are you sure you want to drop? (y/n): ")
+	    Console.flush();
+	
+	    val buffer = new BufferedReader(new InputStreamReader(System.in));
+	    var input = buffer.readLine();
+	    if ((input.equals("y"))){
+		    Tables.dropConstraint(tableName, columnName) match{
 	    case Right(table) => AffectedRows(1)
 	    case Left(e) => e
+		    }
+		    } else (Executor.COMMAND_CANCELED)
 	  }
 	  
 	  case Insert(tableName, columnList, values) => Databases.current match {
