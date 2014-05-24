@@ -60,5 +60,9 @@ object DBTable {
     case _ => Nil //exhaustive match
   }
 
+  def delete(id: String) = Rows.deleteFrom(db, table,
+    Some(ExpressionEquals(StringExpressionWrap("id"),StringExpressionWrap(id)))
+  )
+
   def getTableColumns: List[ColumnDefinition] = table.columns
 }

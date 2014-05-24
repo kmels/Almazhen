@@ -40,7 +40,8 @@ class MainServlet extends AlmazhenCrudStack {
     val id = params("id")
 
     println(s"Borrando fila con id $id")
-
+    DBTable.delete(id)
+    redirect("/")
   }
 
   def defaultValue(typ: AZtype): String = typ match{
@@ -57,7 +58,7 @@ class MainServlet extends AlmazhenCrudStack {
     //val columns
 
     println(params.toString())
-    
+
     val columns: List[ColumnDefinition] = DBTable.getTableColumns
 
     val values: List[String] = columns.map{
@@ -72,7 +73,6 @@ class MainServlet extends AlmazhenCrudStack {
         }}
     }
 
-
     println("Insertando valores: "+values)
 
     DBTable.insert(values) match{
@@ -85,6 +85,7 @@ class MainServlet extends AlmazhenCrudStack {
     }
 
     println("Las columnas son "+columns)
+    redirect("/")
   }
 
 }
