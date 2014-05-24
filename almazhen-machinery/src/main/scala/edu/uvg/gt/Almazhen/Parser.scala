@@ -11,15 +11,15 @@ object Parser extends StandardTokenParsers {
 
   def command: Parser[Command] =
   	/* kmels */
-  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO ||| 
+  	createDB ||| showDatabases ||| dropDB ||| useDB ||| alterDB ||| addColumn ||| insertINTO |||
   	selectRows ||| deleteFROM ||| readScript ||| updateRows |||
   	/* paulo */
   	createTable ||| showTables ||| dropTable ||| renameTable ||| showColumns ||| dropColumn ||| addConstraint ||| dropConstraint
 
   //def listOfCommands: Parser[List[Command]] = rep(command, ",")
-  
+
   def readScript: Parser[ReadScript] = "READ" ~> "SCRIPT" ~> stringLit ^^ {case f => ReadScript(f)}
-    
+
   def createDB: Parser[CreateDatabase] = "CREATE" ~> "DATABASE" ~> ident ^^ {
     case name => CreateDatabase(name)
   }
@@ -79,12 +79,12 @@ object Parser extends StandardTokenParsers {
   def insertINTO: Parser[Insert] = "INSERT" ~> "INTO" ~> ident ~ maybeColumnList ~ "VALUES" ~ "(" ~ valueList <~ ")" ^^{
     case tableName ~ columnList ~ "VALUES" ~ "(" ~ values => Insert(tableName, columnList, values)
   }
-  
+
   def maybeColumnList: Parser[Option[List[String]]] = opt(repsep(ident,","))
   def valueList: Parser[List[String]] = repsep(aValueExpr, ",")
-  def aValueExpr: Parser[String] = numericLit ||| date ||| floatLit
-  
-  
+  def aValueExpr: Parser[String] = numericLit ||| date ||| floatLit ||| stringLit
+
+
 /*  def insertWithColumnsCommandParser: Parser[InsertWithColumns] = "INSERT" ~> "INTO" ~>  ident ~"("~repsep(ident/*string*/,",")~")"~ "VALUES" ~ "(" ~ repsep(ident, ",") <~ ")" ^^{
     case tableName ~"("~theColumns~")"~ "VALUES" ~ "(" ~ newValues => InsertWithColumns(tableName, theColumns, newValues)
   }*/
@@ -102,7 +102,7 @@ object Parser extends StandardTokenParsers {
     //case _ => Predicate("")
 }
 
- def expressionOperation: Parser[Predicate] = 
+ def expressionOperation: Parser[Predicate] =
 		 (unaryExpr ~ opt(("<="|"<"|">"|">="|"="|"<>") ~ expressionOperation )) ^^ {
     case exp ~ None => exp
     case exp1 ~ Some(innerE) => innerE match{
@@ -124,33 +124,33 @@ object Parser extends StandardTokenParsers {
 
  def unaryExpr: Parser[Predicate] = ("NOT" ~> simpleExpression ^^ { NotExpression(_)} ||| simpleExpression)
 
- def valueLiteral: Parser[ValueLiteral] = ident ^^ { StringExpressionWrap(_) } ||| 
-		 									numericLit ^^ {NumericExpressionWrap(_)} ||| 
-		 									stringLit ^^ {StringExpressionWrap(_)} ||| 
+ def valueLiteral: Parser[ValueLiteral] = ident ^^ { StringExpressionWrap(_) } |||
+		 									numericLit ^^ {NumericExpressionWrap(_)} |||
+		 									stringLit ^^ {StringExpressionWrap(_)} |||
 		 									floatLit ^^ {FloatExpressionWrap(_)} |||
-		 									date ^^ { DateExpressionWrap(_) } 
-		 									
+		 									date ^^ { DateExpressionWrap(_) }
+
  def simpleExpression: Parser[Predicate] = valueLiteral |||
-		 									("(" ~> predicate <~ ")") 
+		 									("(" ~> predicate <~ ")")
 
   def deleteFROM: Parser[DeleteFROM] = "DELETE" ~> "FROM" ~> ident ~ whereClause ^^{
     case tableName ~  predicate => DeleteFROM(tableName, predicate)
   }
 
   def selectRows: Parser[SelectCommand] = selectAll ||| selectAndProject
-  
+
   def selectAndProject: Parser[SelectCommand] = "SELECT" ~> repsep(ident,",") ~"FROM" ~ ident  ~ whereClause ~ orderClause  ^^ {
     case projections ~ "FROM" ~ tableName  ~ whereClause ~ orderClause => SelectCommand(Some(projections), tableName, whereClause, orderClause)
   }
-  
+
   def whereClause: Parser[Option[Predicate]] = opt("WHERE" ~> predicate)
-  
+
   def orderClause: Parser[List[OrderBy]] = opt("ORDER" ~> "BY" ~> repsep(orderByExpr,",")) ^^{
     case None => List()
     case Some(seps) => seps
   }
 
-  def selectAll: Parser[SelectCommand] = "SELECT" ~> "*" ~> "FROM" ~> ident ~ whereClause ~ orderClause ^^{ 
+  def selectAll: Parser[SelectCommand] = "SELECT" ~> "*" ~> "FROM" ~> ident ~ whereClause ~ orderClause ^^{
     case tableName ~ p ~ o => SelectCommand(None, tableName, p, o)
   }
 
@@ -185,7 +185,7 @@ object Parser extends StandardTokenParsers {
   }
 
   def fk_restriction:Parser[Fk_key] = foreignKeyName ~ "FOREIGN" ~ "KEY" ~ "(" ~ repsep(ident,",") ~ ")" ~ "REFERENCES" ~ ident ~ "("~repsep(ident,",")<~")" ^^ {
-    case fkName ~"FOREIGN"~"KEY"~"(" ~ columns ~")"~"REFERENCES"~referencedTableName~"("~ referencedColumns => Fk_key(fkName, referencedTableName, columns.zip(referencedColumns))
+    case fkName ~"FOREIGN"~"KEY"~"(" ~ columns ~")"~"REFERENCES"~referencedTableName~"("~ referencedColumns => Fk_key(fkName, referencedTableName, columns,  referencedColumns)
   }
 
   def ch_restriction:Parser[Ch_key] = checkName ~ "CHECK" ~ "(" ~ predicate ~ ")" ^^ {
@@ -197,7 +197,7 @@ object Parser extends StandardTokenParsers {
   def checkName: Parser[String] = elem("check key", _.isInstanceOf[lexical.CheckNameLit]) ^^ (_.chars)
   def floatLit: Parser[String] = elem("floating number", _.isInstanceOf[lexical.FloatLit]) ^^ (_.chars)
   def date: Parser[String] = elem("date", _.isInstanceOf[lexical.DateLit]) ^^ (_.chars)
-  
+
   def parse(s:String):Option[Command] = {
     val tokens = new lexical.Scanner(s)
 
@@ -227,11 +227,11 @@ class Lexer extends StdLexical{
     | delim
     | failure("illegal character")
     )
-    
+
   def year: Parser[Int] = digit ~ digit ~ digit ~ digit ^^ { case y1 ~ y2 ~ y3 ~ y4 => List(y1,y2,y3,y4).mkString("").toInt }
   def month: Parser[Int] = digit ~ digit ^^ { case m1 ~ m2 => List(m1,m2).mkString("").toInt }
   def day: Parser[Int] = digit ~ digit ^^ { case d1 ~ d2 => List(d1,d2).mkString("").toInt }
-  
+
   case class CharLit(val chars:String) extends Token {
     override def toString = "'"+chars+"'"
   }
@@ -242,8 +242,8 @@ class Lexer extends StdLexical{
 
   case class FloatLit(chars: String) extends Token { override def toString = chars}
   case class DateLit(day: Int, month: Int, year: Int, val chars: String) extends Token { override def toString = s"$year-$month-$day"}
-  
-  reserved ++= Set("SCRIPT", "CREATE", "DATABASE", "ALTER", "DROP", "SHOW", "DATABASES", "USE", "TABLE", "PRIMARY", "KEY", "FOREIGN"
+
+  reserved ++= Set("SCRIPT", "CREATE", "DATABASE", "ALTER", "DROP", "SHOW", "DATABASES", "USE", "TABLE", "PRIMARY", "KEY", "FOREIGN", "REFERENCES"
     , "CHECK", "INT", "FLOAT", "DATE", "CHAR", "AND", "OR", "NOT", "RENAME", "TO", "ADD", "COLUMN", "CONSTRAINT", "TABLES", "COLUMNS",
     "FROM", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "WHERE", "DELETE", "SELECT", "ORDER", "BY", "ASC", "DESC", "NULL","READ")
 

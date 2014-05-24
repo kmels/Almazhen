@@ -96,16 +96,26 @@ object Implicits {
     						   ("columns" := jArray(cols map {col => jString(col)} )) ->:
     						   ("referenced_table" := "") ->: 
     						   ("column_refs" := jArray(List())) ->: 
+    						   ("referenced_cols" := jArray(List())) ->:
     						   ("exp" := "") ->:
     						   jEmptyObject
-    						   
-    case Fk_key(name, referenced_table, col_refs) => ("type" := "FK") ->: 
+
+    case Fk_key(name, referenced_table, col_refs, referenced_cols) => ("type" := "FK") ->: 
     						   						 ("name" := name) ->: 
     						   						 ("columns" := jArray(List())) ->: 
     						   					     ("referenced_table" := referenced_table) ->:
-    						   					     ("column_refs" := jArray(col_refs map toRefJson)) ->: 
+    						   					     ("column_refs" := jArray(col_refs map {col => jString(col)} )) ->: 
+    						   					     ("referenced_cols" := jArray(referenced_cols map {col => jString(col)} )) ->: 
     						   					     ("exp" := "") ->:
     						   					     jEmptyObject
+    						   
+    /*case Fk_key(name, referenced_table, col_refs) => ("type" := "FK") ->: 
+    						   						 ("name" := name) ->: 
+    						   						 ("columns" := jArray(List())) ->: 
+    						   					     ("referenced_table" := referenced_table) ->:
+    						   					     ("column_refs" := jArray(List())) ->: 
+    						   					     ("exp" := "") ->:
+    						   					     jEmptyObject*/
     						   					     
     case Ch_key(name, predicate) => 
       						  ("type" := "CH") ->:
@@ -113,6 +123,7 @@ object Implicits {
     						  ("columns" := jArray(List())) ->: 
     						  ("referenced_table" := "") ->:
     						  ("column_refs" := jArray(List())) ->: 
+    						   ("referenced_cols" := jArray(List())) ->:
     						  ("exp" := predicate.toString) ->:
     						  jEmptyObject
   })
@@ -128,13 +139,18 @@ object Implicits {
 	name <- (c --\ "name").as[String]
 	columns <- (c --\ "columns").as[List[String]]
 	referenced_table <- (c --\ "referenced_table").as[String]
-	column_refs <- (c --\ "column_refs").as[List[(String,String)]]
+	column_refs <- (c --\ "column_refs").as[List[String]]
+	referenced_cols <- (c --\ "referenced_cols").as[List[String]]
 	exp <- (c --\ "exp").as[String]
   } yield typ match{
     case "PK" => Pk_key(name, columns)
-    case "FK" => Fk_key(name, referenced_table, column_refs)
+    case "FK" => Fk_key(name, referenced_table, column_refs, referenced_cols)
     //TODO: Fix this case (Predicate can't be initialized)
+<<<<<<< HEAD:almazhen-machinery/src/main/scala/edu/uvg/gt/Almazhen/Types.scala
     case "CH" => Pk_key(name, Nil)
+=======
+    case "CH" => Ch_key(name, new myPredicate(exp))
+>>>>>>> 1f247dfb12cc016b5f5163df67ad8cdc1935b925:src/main/scala/edu/uvg/gt/Almazhen/Types.scala
   });
 }
 
@@ -143,6 +159,11 @@ abstract class Predicate
 {
   def eval(implicit row:Row): Option[Boolean]
   def compare(exp2: Predicate)(implicit row:Row): Option[Int] 
+}
+
+case class myPredicate(exp : String) extends Predicate{
+  override def eval(implicit row:Row): Option[Boolean] = None
+  override def compare(exp: Predicate)(implicit row:Row) = None
 }
 
 case class ExpressionAnd(expression1: Predicate, expression2: Predicate) extends Predicate {
@@ -247,7 +268,13 @@ case class NumericExpressionWrap(expression: String) extends ValueLiteral(expres
   def intValue(implicit row: Row): Option[Int] = expression.toIntOpt
   
   override def compare(exp: Predicate)(implicit row: Row) = exp match {
-    case NumericExpressionWrap(numeric_exp) => {
+   case StringExpressionWrap(strExpr) => {
+    	val x = expression.toStringExpr
+    	val y = strExpr.toStringExpr
+    	Some(x.compareTo(y))
+    } 
+   
+  case NumericExpressionWrap(numeric_exp) => {
       val x = this.intValue
       val y = numeric_exp.toIntOpt
       
@@ -255,6 +282,16 @@ case class NumericExpressionWrap(expression: String) extends ValueLiteral(expres
       if (x.isDefined && y.isDefined){
         //println(" ... => "+ Integer.compare(x.get, y.get))
     	Some(Integer.compare(x.get, y.get))
+      }
+       else None
+    }
+    case FloatExpressionWrap(numeric_exp) => {
+      val x = this.expression.toFloatOpt
+      val y = numeric_exp.toFloatOpt
+      
+      //println("Comparing "+ x + " to " + y)
+      if (x.isDefined && y.isDefined){
+    	Some(x.get.compareTo(y.get))
       }
        else None
     }
@@ -269,16 +306,60 @@ abstract class ValueLiteral(exp: String) extends Predicate{
   override def toString = exp
 }
 
-case class FloatExpressionWrap(exp: String) extends ValueLiteral(exp) {
-  def floatValue(implicit row: Row): Option[Float] = exp.toFloatOpt
+case class FloatExpressionWrap(expression: String) extends ValueLiteral(expression) {
+  def floatValue(implicit row: Row): Option[Float] = expression.toFloatOpt
   
   override def eval(implicit row:Row) :Option[Boolean]= floatValue.map(_ => false)
   
-  override def compare(exp: Predicate)(implicit row: Row) = ???
+  override def compare(exp: Predicate)(implicit row: Row) = exp match {
+    case StringExpressionWrap(strExpr) => {
+    	val x = expression.toStringExpr
+    	val y = strExpr.toStringExpr
+    	Some(x.compareTo(y))
+    }  	
+    case FloatExpressionWrap(numeric_exp) => {
+      val x = this.floatValue
+      val y = numeric_exp.toFloatOpt
+      
+      //println("Comparing "+ x + " to " + y)
+      if (x.isDefined && y.isDefined){
+    	Some(x.get.compareTo(y.get))
+      }
+       else None
+    }
+    case NumericExpressionWrap(numeric_exp) => {
+      val x = this.floatValue
+      val y = numeric_exp.toFloatOpt
+      
+      //println("Comparing "+ x + " to " + y)
+      if (x.isDefined && y.isDefined){
+    	Some(x.get.compareTo(y.get))
+      }
+       else None
+    }
+    case _ => None
+  }
 }
 
-case class DateExpressionWrap(exp: String) extends ValueLiteral(exp){
-  override def compare(exp: Predicate)(implicit row: Row) = ???
+case class DateExpressionWrap(expression: String) extends ValueLiteral(expression){
+  def DateValue(implicit row: Row): Option[Date] = expression.toDateOpt
+  override def compare(exp: Predicate)(implicit row: Row) = exp match{
+    case DateExpressionWrap(dateExp) => {
+      val x = this.DateValue
+      val y = dateExp.toDateOpt
+      if (x.isDefined && y.isDefined){
+        //println(" ... => "+ Integer.compare(x.get, y.get))
+    	Some(x.get.compareTo(y.get))
+      }
+       else None
+    }
+    case StringExpressionWrap(strExpr) => {
+    	val x = expression.toStringExpr
+    	val y = strExpr.toStringExpr
+    	Some(x.compareTo(y))
+    }
+    case _ => None
+  }
   override def eval(implicit row:Row) :Option[Boolean] = ???
 }
 
@@ -287,7 +368,7 @@ case class StringExpressionWrap(expression: String) extends ValueLiteral(express
     case StringExpressionWrap(strExpr) => {
     	val x = expression.toStringExpr
     	val y = strExpr.toStringExpr
-    	Some(x.compareTo(y))
+    	Some(x.compare(y))
     }
     case NumericExpressionWrap(numeric_exp) => {
       val x = this.expression.toIntOpt
@@ -310,6 +391,15 @@ case class StringExpressionWrap(expression: String) extends ValueLiteral(express
       }
        else None
     }
+    case DateExpressionWrap(dateExp) => {
+      val x = this.expression.toDateOpt
+      val y = dateExp.toDateOpt
+      if (x.isDefined && y.isDefined){
+        //println(" ... => "+ Integer.compare(x.get, y.get))
+    	Some(x.get.compareTo(y.get))
+      }
+       else None
+    }
     case _ => None
   }
     
@@ -323,12 +413,23 @@ abstract class OrderByDirection
 object ASCOrder extends OrderByDirection
 object DESCOrder extends OrderByDirection
 
-abstract class AZtype
+abstract class AZtype {
+  def toString : String
+}
 
-object IntType extends AZtype
-object FloatType extends AZtype
-object DateType extends AZtype
-case class VARCHAR(size: Int) extends AZtype
+object IntType extends AZtype {
+  override def toString : String = "Int"
+}
+object FloatType extends AZtype{
+  override def toString : String = "Float"
+}
+object DateType extends AZtype{
+  override def toString : String = "Date"
+}
+
+case class VARCHAR(size: Int) extends AZtype{
+  override def toString : String = "Varchar (" +  size.toString +")"
+}
 
 abstract class Constraint{
   val name: String
@@ -336,7 +437,8 @@ abstract class Constraint{
 
 case class Pk_key(override val name: String, cols: List[String]) extends Constraint
 
-case class Fk_key(override val name: String, referenced_table: String, cols: List[(String,String)]) extends Constraint
+case class Fk_key(override val name: String, referenced_table: String, cols: List[String], ref_cols: List[String]) extends Constraint
+/*case class Fk_key(override val name: String, referenced_table: String, cols: List[(String,String)]) extends Constraint*/
 
 case class Ch_key(override val name: String, check: Predicate) extends Constraint
 
