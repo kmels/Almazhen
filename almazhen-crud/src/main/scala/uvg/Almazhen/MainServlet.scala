@@ -25,7 +25,9 @@ class MainServlet extends AlmazhenCrudStack {
   post("/insertar/fila"){
     //val columns
 
-    params("id")
+    //params("id")
+
+    println("Las columnas son "+DBTable.getTableColumns)
   }
   
 }
