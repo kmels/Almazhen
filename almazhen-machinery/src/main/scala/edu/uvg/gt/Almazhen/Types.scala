@@ -146,11 +146,8 @@ object Implicits {
     case "PK" => Pk_key(name, columns)
     case "FK" => Fk_key(name, referenced_table, column_refs, referenced_cols)
     //TODO: Fix this case (Predicate can't be initialized)
-<<<<<<< HEAD:almazhen-machinery/src/main/scala/edu/uvg/gt/Almazhen/Types.scala
     case "CH" => Pk_key(name, Nil)
-=======
     case "CH" => Ch_key(name, new myPredicate(exp))
->>>>>>> 1f247dfb12cc016b5f5163df67ad8cdc1935b925:src/main/scala/edu/uvg/gt/Almazhen/Types.scala
   });
 }
 

@@ -31,7 +31,10 @@ object AlmazhenCrudBuild extends Build {
         "ch.qos.logback" % "logback-classic" % "1.0.6" % "runtime",
         "org.eclipse.jetty" % "jetty-webapp" % "8.1.8.v20121106" % "container",
         "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar"))
+        , "io.argonaut" %% "argonaut" % "6.0.4"
       ),
+        //unmanagedSourceDirectories in Compile += new java.io.File("C:\\Almazhen\\almazhen-machinery\\src\\main\\scala"),
+      unmanagedSourceDirectories in Compile += new java.io.File("..\\almazhen-machinery\\src\\main\\scala"),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
           TemplateConfig(

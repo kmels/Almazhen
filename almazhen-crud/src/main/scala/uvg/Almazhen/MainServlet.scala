@@ -4,6 +4,7 @@ import org.scalatra._
 import scalate.ScalateSupport
 
 class MainServlet extends AlmazhenCrudStack {
+  final val TABLE_NAME = ""
 
   get("/") {
     <html>
@@ -12,6 +13,19 @@ class MainServlet extends AlmazhenCrudStack {
         Say <a href="hello-scalate">hello to Scalate</a>.
       </body>
     </html>
+  }
+
+  post("/eliminar/:id"){
+    val id = params("id")
+
+    println(s"Borrando fila con id $id")
+
+  }
+
+  post("/insertar/fila"){
+    //val columns
+
+    params("id")
   }
   
 }
