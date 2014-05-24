@@ -4,6 +4,8 @@ import org.scalatra.sbt._
 import org.scalatra.sbt.PluginKeys._
 import com.mojolly.scalate.ScalatePlugin._
 import ScalateKeys._
+import com.earldouglas.xsbtwebplugin.PluginKeys._
+import com.earldouglas.xsbtwebplugin.WebPlugin._
 
 object AlmazhenCrudBuild extends Build {
   val Organization = "uvg.Almazhen"
@@ -20,6 +22,7 @@ object AlmazhenCrudBuild extends Build {
       name := Name,
       version := Version,
       scalaVersion := ScalaVersion,
+      port in container.Configuration := 21798, 
       resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
         "org.scalatra" %% "scalatra" % ScalatraVersion,
