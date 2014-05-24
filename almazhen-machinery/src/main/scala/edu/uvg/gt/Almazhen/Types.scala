@@ -134,7 +134,7 @@ object Implicits {
     case "PK" => Pk_key(name, columns)
     case "FK" => Fk_key(name, referenced_table, column_refs)
     //TODO: Fix this case (Predicate can't be initialized)
-    //case "CH" => Ch_key(name, new Predicate(exp))
+    case "CH" => Pk_key(name, Nil)
   });
 }
 

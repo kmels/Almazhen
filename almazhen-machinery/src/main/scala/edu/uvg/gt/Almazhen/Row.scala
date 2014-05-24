@@ -53,7 +53,7 @@ object Rows{
     	  //if some column name doesn't exist, return error
     	  if (! colnames.forall(colname => table.columns.exists(_.name == colname))){
     	    val colname = colnames.diff(table.columns.map(cl => cl.name)).head
-    	    Left(Error("Column named $colname colname doesn't exist"))
+    	    Left(Error("Column named "+ colname + " doesn't exist in table "+table.name))
     	  }else
     	    //all columns exist
     	    Right(colnames.map(colname => table.columns.find(_.name == colname).get)) 	 
@@ -84,9 +84,22 @@ object Rows{
     })
    
     //check restrictions
-    //val restrictionFreeColumns: Either[Error, List[(ColumnDefinition, ColumnValue)]] = typedColumns.fold(Left(_), cols => {
-      
-    //})
+    val existentRows = if(table.restrictions.size > 0) getRows(db,table) else List()
+    
+/*    val restrictionFreeColumns: Either[Error, List[(ColumnDefinition, ColumnValue)]] = typedColumns.fold(Left(_), cols => {
+    
+      //check the primary keys first
+    	val pk_col_names: List[String] = table.restrictions.filter(_.isInstanceOf[Pk_key]).flatMap(_.asInstanceOf[Pk_key].cols)
+    	val pkErrorFreeColumns: Either[Error,List[(ColumnDefinition, ColumnValue)]] = pk_col_names.map(pk_col_name => {
+    	  //is there an assignment value to this pk_col_name?
+    	  val colVal: Option[ColumnValue] = cols.map(_._2).find(_.column_name == pk_col_name)
+    	  
+    	  if (existentRows.map(_.values).exists(valueList => {
+    	    valueList.exists(colval => colval.column_name == pk_col_name)
+    	  }))
+    	  
+    	})
+    })*/
     
     //do insert
     if (typedColumns.isLeft)
@@ -284,6 +297,10 @@ object Rows{
     }
     
     cache.get((db,table)).fold[List[Row]](List())(rows => rows)
+  }
+  
+  def deleteRows(db: Database, table: Table): Unit = {
+    this.writeRows(db, table, Nil)
   }
   
   implicit def RowJson: CodecJson[Row] = casecodec1(Row.apply, Row.unapply)("values")

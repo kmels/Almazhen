@@ -48,12 +48,12 @@ object Executor {
 	    }
 	  }
 
-	  case DropTable(tbName) => {
-	    val maybeTable = Tables.drop(tbName)
-	    maybeTable match {
+	  case DropTable(tbName) => Databases.current match {
+	    case Some(db) => Tables.drop(db, tbName) match {
 	      case Left(e) => e
 	      case _ => AffectedRows(1)
 	    }
+	    case None => Executor.DATABASE_NOT_SELECTED
 	  }
 
 	  case ShowDatabases() => {

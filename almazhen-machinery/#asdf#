@@ -1,0 +1,16 @@
+CREATE TABLE Persona(nombre CHAR (20), edad INT, fecha DATE, karma FLOAT CONSTRAINT)
+
+
+Your command: ALTER TABLE Personas ADD COLUMN newCol FLOAT CONSTRAINT 
+No database is selected.
+Your command: USE DATABASE Gente
+Affected 0 rows
+Your command: ALTER TABLE Personas ADD COLUMN newCol FLOAT CONSTRAINT 
+Table Personas doesn't exists
+Your command: ALTER TABLE Persona ADD COLUMN newCol FLOAT CONSTRAINT 
+Table Persona doesn't exists
+Your command: ALTER TABLE Personas ADD COLUMN newCol FLOAT CONSTRAINT 
+Table Personas doesn't exists
+Your command: ALTER TABLE Persona ADD COLUMN newCol FLOAT CONSTRAINT 
+Table Persona doesn't exists
+Your command :

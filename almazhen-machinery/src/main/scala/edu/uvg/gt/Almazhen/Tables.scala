@@ -95,7 +95,7 @@ object Tables {
    * If the table does not exist, None is returned.
    * Otherwise, the just-dropped table is returned
    */
-  def drop(tbname: String): Either[Error,Table] = {
+  def drop(db: Database, tbname: String): Either[Error,Table] = {
 
     val maybeTB = findByName(tbname)
 
@@ -109,6 +109,8 @@ object Tables {
 
           case Right(tableList) => {
         	  setTablesTo(tableList.filter(_ != table))
+        	  Rows.deleteRows(db, table)
+        	  Rows.flushTables
         	  Right(table)
           }
         }
