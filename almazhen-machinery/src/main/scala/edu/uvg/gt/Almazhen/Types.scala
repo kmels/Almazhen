@@ -429,7 +429,7 @@ case class VARCHAR(size: Int) extends AZtype{
 }
 
 abstract class Constraint{
-  val name: String
+  val name: String  
 }
 
 case class Pk_key(override val name: String, cols: List[String]) extends Constraint

@@ -35,7 +35,8 @@ object Executor {
 	final def COLUMN_EXISTS(colname: String) = Error(s"Column $colname exists")
 	final def CONSTRAINT_EXISTS(tablename: String, constraintname: String) = Error(s"Constraint $constraintname already exists on table $tablename")
 	final def CONSTRAINT_DOES_NOT_EXISTS(tablename: String, constraintname: String) = Error(s"Constraint $constraintname doesn't exists on table $tablename")
-	final def COLUMN_DOES_NOT_EXISTS(colname: String) = Error(s"Table $colname doesn't exists")
+	final def COLUMN_DOES_NOT_EXISTS(colname: String) = Error(s"Column $colname doesn't exists")
+	final def PK_EXISTS(table: String) = Error(s"Primary key for table $table already exists")
 	final def COMMAND_CANCELED = Error(s"Command canceled!")
 
 	def exec(cmd: Command):ExecutionResult = cmd match {

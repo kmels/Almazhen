@@ -270,6 +270,45 @@ object Tables {
               case Left(e) => Left(e) //Database not selected
               case Right(tableList) =>{
 
+                
+                    newConstraint match {
+		              case Pk_key(name, cols) => {
+		                for (c <- cols) {
+		                  if (!currentTable.columns.exists(_.name == c))
+		                    return Left(Executor.COLUMN_DOES_NOT_EXISTS(c))
+		                }
+		                
+		                for (c <- currentTable.restrictions) {
+		                  c match {
+		                    case Pk_key(name, cols) => 
+		                      return Left(Executor.PK_EXISTS(currentTable.name))
+		                    case _ => None
+		                  }
+		                }
+		                
+		                	
+		              }
+		              
+		              case Fk_key(name, referenced_table, col_refs, referenced_cols) => {
+		                val maybeReferenced = findByName(tableName)
+		                maybeReferenced match {
+		                  case Left(e) => Left(e)
+		                  case Right(referencedTable) =>
+		                    for (c <- referenced_cols) {
+			                  if (!referencedTable.columns.exists(_.name == c))
+			                    return Left(Executor.COLUMN_DOES_NOT_EXISTS(c))
+			                }		                    
+		                }
+		                for (c <- col_refs) {
+		                  if (!currentTable.columns.exists(_.name == c))
+		                    return Left(Executor.COLUMN_DOES_NOT_EXISTS(c))
+		                }
+		                
+		              }
+		              
+		              case _ => ???
+		            }
+                    
                 val updated_tables: List[Table] = tableList.map(t =>{
                   if (t.name == currentTable.name){
                     t.copy(columns = t.columns , restrictions = t.restrictions :+ newConstraint)
