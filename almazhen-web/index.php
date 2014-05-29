@@ -81,7 +81,7 @@
                         $str .= "  <td>".$documento['credito']."</td>";
                         $str .= "  <td>".$documento['nacimiento']."</td>";
                         $str .= "  <td><a href='./update.php?id=".$documento['id']."' class='btn btn-info' role='button'>Update</a></td>";
-                        $str .= "  <td><a href='./delete.php?id=".$documento['id']."' class='btn btn-danger' role='button'>Delete</a></td>";
+                        $str .= '  <td><a href="javascript:confirm('."'Borrar registro?'".')?window.location='."'./delete.php?id="."".$documento['id']."'".":void(0);".'" class="btn btn-danger" role="button">Delete</a></td>';
                         $str .= "</tr>";
                         $contador++;;
                       };
